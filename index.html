@@ -720,6 +720,8 @@ function wrapLines(ctx, text, maxW){
   }
   return out;
 }
+/* 二维码（离线内联矩阵 33×33, ECC Q）：指向在线版 https://dukewang01.github.io/dashui-shidai/ */
+var QR_N = 33, QR_BITS = "111111101010101111010011001111111100000101110111100111001101000001101110101111010001101001001011101101110101010110011100011101011101101110101010101010101011001011101100000100110001011110101101000001111111101010101010101010101111111000000001110110001010111100000000011010110010011001001101001011111110100011001011001001000111100011100011100111010110100010001100101000100010000010101101101100010011010010100111010100101100111001001011100001111010011110000001000101000001111100101000100100010010011101001001101100100001101001000010101101101011000111111101111000000110111000111100000101000111100011101101100001100011101010001000111111000010111001011101110001110000010100110110010101111101111001011010000001010011000000100111001111100000111110101111100100011101111010001010010111010110111110010001100010101110001110111110111110000000000001000001111100111100011001111111101010110010100001101010111100000100011011000010100100010010101110101101011011001100111111000101110100000011000101100000010111101110101001011000000011110011001100000101110110101010100111011010111111100111100000000111101010011";
 function saveCard(){
   var lean = Math.round(S.lean), greenPct = Math.round(100 * S.greenT / C.dur);
   var title = document.getElementById("endTitle").textContent.replace("称号：", "");
@@ -741,7 +743,9 @@ function saveCard(){
   var yNum     = y0 + 130, yLab = y0 + 176, yCell = y0 + 220;
   var yCard    = yCell + 108 + 40, yCfTxt = yCard + 44;
   var yShareBx = yCard + cfH + 46, yShareTx = yShareBx + 34;
-  var yHash    = yShareBx + shH + 52, yFoot = yHash + 46;
+  var qrN = QR_N, qrMs = 4, qrS = qrN * qrMs, qrQ = 12;        /* 模块 4px 整数 → 扫描不糊 */
+  var qrX = 80, qrY = yShareBx + shH + 46, qrCapX = qrX + qrS + qrQ * 2 + 26;
+  var yHash    = qrY + qrS + qrQ * 2 + 40, yFoot = yHash + 46;
   var W = 900, H = Math.round(yFoot + 34);
 
   /* ---------- 第二遍：绘制 ---------- */
@@ -775,6 +779,20 @@ function saveCard(){
   x.beginPath(); x.roundRect ? x.roundRect(80, yShareBx, 740, shH, 18) : x.rect(80, yShareBx, 740, shH); x.fill(); x.stroke();
   x.fillStyle = "#12313f"; x.font = "700 27px " + F;
   for(var m = 0; m < sl.length; m++) x.fillText(sl[m], 450, yShareTx + m * 44);
+  /* 二维码区：白底含静区，模块整数落点（分数坐标会被抗锯齿糊掉，扫不出来） */
+  x.fillStyle = "#ffffff"; x.strokeStyle = "#d8e8f2"; x.lineWidth = 2;
+  x.beginPath();
+  if(x.roundRect) x.roundRect(qrX - qrQ, qrY - qrQ, qrS + qrQ * 2, qrS + qrQ * 2, 14);
+  else x.rect(qrX - qrQ, qrY - qrQ, qrS + qrQ * 2, qrS + qrQ * 2);
+  x.fill(); x.stroke();
+  x.fillStyle = "#12313f";
+  for(var r = 0; r < qrN; r++) for(var c = 0; c < qrN; c++)
+    if(QR_BITS.charAt(r * qrN + c) === "1") x.fillRect(qrX + c * qrMs, qrY + r * qrMs, qrMs, qrMs);
+  x.textAlign = "left";
+  x.fillStyle = "#12313f"; x.font = "900 30px " + F; x.fillText("扫码来玩 →", qrCapX, qrY + 40);
+  x.fillStyle = "#3d5f70"; x.font = "700 23px " + F; x.fillText("手机可玩 · 免费 · 一局 60 秒", qrCapX, qrY + 78);
+  x.fillStyle = "#7d9aab"; x.font = "600 20px " + F; x.fillText("dukewang01.github.io/dashui-shidai", qrCapX, qrY + 112);
+  x.textAlign = "center";
   x.fillStyle = "#3d5f70"; x.font = "700 24px " + F;
   x.fillText("#大水时代　#薄肌　#喝大水不可豪饮", 450, yHash);
   var d = new Date();
