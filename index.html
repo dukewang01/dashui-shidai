@@ -739,7 +739,7 @@ function saveCard(){
   mx.font = "700 25px " + F;
   var cl = wrapLines(mx, document.getElementById("cf").textContent, 700).slice(0, 5);
   mx.font = "700 27px " + F;
-  var sl = wrapLines(mx, document.getElementById("share").value.split("#")[0].trim(), 740).slice(0, 8);
+  var sl = wrapLines(mx, document.getElementById("share").value.split("#")[0].trim(), 660).slice(0, 8);   /* 660 而非 700：给「」等标点粘连留余量，否则末字会顶出圆角框 */
 
   /* ---------- 流水布局（全部相对累计，互不重叠） ---------- */
   var cfH = 44 + cl.length * 46, shH = sl.length * 44 + 30;
@@ -781,8 +781,8 @@ function saveCard(){
   x.textAlign = "center";
   x.fillStyle = "#ffffff"; x.strokeStyle = "#d8e8f2"; x.lineWidth = 2;
   x.beginPath(); x.roundRect ? x.roundRect(80, yShareBx, 740, shH, 18) : x.rect(80, yShareBx, 740, shH); x.fill(); x.stroke();
-  x.fillStyle = "#12313f"; x.font = "700 27px " + F;
-  for(var m = 0; m < sl.length; m++) x.fillText(sl[m], 450, yShareTx + m * 44);
+  x.fillStyle = "#12313f"; x.font = "700 27px " + F; x.textAlign = "left";   /* 段落左对齐：末行居中会飘到中间 */
+  for(var m = 0; m < sl.length; m++) x.fillText(sl[m], 96, yShareTx + m * 44);
   /* 二维码区：白底含静区，模块整数落点（分数坐标会被抗锯齿糊掉，扫不出来） */
   x.fillStyle = "#ffffff"; x.strokeStyle = "#d8e8f2"; x.lineWidth = 2;
   x.beginPath();
