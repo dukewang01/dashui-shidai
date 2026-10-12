@@ -168,7 +168,14 @@ function fit(){
   cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
-fit(); window.addEventListener("resize", fit);
+/* HUD 下沿（画布逻辑单位）：物件绘制裁到这里，避免从 HUD 面板缝隙露头 */
+var HUDCUT = 66;
+function measureHud(){
+  var r = cv.getBoundingClientRect(), h = document.getElementById("hud").getBoundingClientRect();
+  if(r.height > 0 && h.height > 0) HUDCUT = Math.max(0, (h.bottom - r.top) * (H / r.height));
+}
+fit(); measureHud();
+window.addEventListener("resize", function(){ fit(); measureHud(); });
 
 /* ============================ config ============================ */
 var C = {
@@ -654,7 +661,10 @@ function render(dt){
   if(S.shake > 0){ ctx.translate((Math.random()-.5)*14*S.shake, (Math.random()-.5)*14*S.shake); }
   drawBG(dt);
   var i;
+  ctx.save();                                       /* 物件层裁剪：不越出 HUD 下沿 */
+  ctx.beginPath(); ctx.rect(0, HUDCUT, W, H - HUDCUT); ctx.clip();
   for(i=0;i<S.objs.length;i++) drawKind(S.objs[i].k, S.objs[i], dt);
+  ctx.restore();
   drawPlayer(S);
   drawParts(dt);
   ctx.restore();
@@ -800,7 +810,7 @@ requestAnimationFrame(frame);
 if(BOT){
   setTimeout(function(){ audioInit(); reset(); }, 200);
 }
-window.__game = { get S(){ return S; }, C: C, end: endGame, start: reset, bot: BOT, saveCard: saveCard };
+window.__game = { get S(){ return S; }, C: C, end: endGame, start: reset, bot: BOT, saveCard: saveCard, hudCut: function(){ return HUDCUT; }, hudCut: function(){ return HUDCUT; } };
 })();
 </script>
 </body>
