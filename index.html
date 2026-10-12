@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>大水时代 · 练薄肌</title>
+<style>
+  :root{
+    --ink:#12313f; --ink2:#3d5f70; --water:#2b9fe0; --water2:#7fd4f7;
+    --lean:#ff7a45; --danger:#e5484d; --ok:#1fae6b; --card:#ffffff;
+    --line:#d8e8f2; --cream:#f2f8fc;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--cream);color:var(--ink);
+    font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,"Segoe UI",sans-serif;}
+  #wrap{position:relative;width:100%;max-width:960px;margin:0 auto;padding:10px 10px 18px}
+  #stage{position:relative;width:100%;aspect-ratio:960/600;border-radius:18px;overflow:hidden;
+    background:linear-gradient(#eaf5ff 0%,#f8fcff 62%,#eef7ee 100%);box-shadow:0 10px 30px rgba(18,49,63,.10)}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+  /* ---------- HUD ---------- */
+  #hud{position:absolute;left:0;right:0;top:0;padding:9px 10px 8px;display:flex;gap:10px;align-items:flex-start;
+    pointer-events:none;font-size:13px}
+  .meter{flex:1 1 0;background:rgba(255,255,255,.82);border:1px solid var(--line);border-radius:12px;padding:6px 9px 7px;
+    backdrop-filter:blur(3px)}
+  .meter .lbl{display:flex;justify-content:space-between;font-weight:700;letter-spacing:.4px;font-size:12px;color:var(--ink2)}
+  .meter .lbl b{color:var(--ink);font-size:14px}
+  .bar{position:relative;height:11px;border-radius:7px;background:#e6eef5;margin-top:5px;overflow:hidden}
+  .bar > i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;transition:width .12s linear}
+  #hydraFill{background:linear-gradient(90deg,var(--water2),var(--water))}
+  #leanFill{background:linear-gradient(90deg,#ffd0a5,var(--lean))}
+  .zone{position:absolute;top:0;bottom:0}
+  .zone.dry{background:rgba(229,72,77,.14)}
+  .zone.ok{background:rgba(31,174,107,.24);border-left:1px solid rgba(31,174,107,.65);border-right:1px solid rgba(31,174,107,.65)}
+  .zone.risk{background:rgba(229,72,77,.18)}
+  .warnChip{font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;color:#fff;background:var(--danger);
+    opacity:0;transition:opacity .15s;white-space:nowrap}
+  #right{display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.82);border:1px solid var(--line);
+    border-radius:12px;padding:7px 11px;font-weight:800;font-size:15px;pointer-events:auto}
+  #combo{color:var(--lean);font-size:12px;font-weight:800}
+  #mute{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;padding:3px 8px;font-size:14px}
+
+  /* ---------- toasts ---------- */
+  #toasts{position:absolute;left:0;right:0;top:104px;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none}
+  .toast{background:#12313f;color:#fff;font-size:13px;font-weight:700;border-radius:20px;padding:5px 13px;
+    animation:tin .25s ease-out, tout .5s ease-in 1.3s forwards;white-space:nowrap}
+  .toast.warn{background:#e5484d}
+  .toast.good{background:#1fae6b}
+  @keyframes tin{from{transform:translateY(-8px) scale(.94);opacity:0}}
+  @keyframes tout{to{transform:translateY(-10px);opacity:0}}
+
+  /* ---------- panels ---------- */
+  .panel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:12px;padding:22px;background:rgba(242,248,252,.94);backdrop-filter:blur(4px);text-align:center}
+  .panel.hidden{display:none}
+  .panel h1{margin:0;font-size:30px;letter-spacing:1px}
+  .panel h1 small{display:block;font-size:13px;font-weight:600;color:var(--ink2);letter-spacing:2px;margin-top:6px}
+  .rules{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;max-width:660px}
+  .rules span{background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12.5px;color:var(--ink2)}
+  .rules span b{color:var(--ink)}
+  .rules .k{background:#eef7ff;border-color:#c9e5f8}
+  button{font-family:inherit;cursor:pointer;border:0;border-radius:13px;padding:11px 22px;font-size:15px;font-weight:800;
+    background:linear-gradient(180deg,#39b0ea,#1f8fd0);color:#fff;box-shadow:0 4px 14px rgba(43,159,224,.35)}
+  button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:none}
+  .hint{font-size:12px;color:var(--ink2)}
+
+  /* ---------- end ---------- */
+  #endTitle{font-size:26px;font-weight:900;color:var(--lean)}
+  #endTitle.gold{color:#c8901a}
+  #endStats{display:grid;grid-template-columns:repeat(5,minmax(62px,1fr));gap:7px;max-width:700px;width:100%}
+  #endStats div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 6px}
+  #endStats b{display:block;font-size:19px}
+  #endStats i{font-style:normal;font-size:11.5px;color:var(--ink2)}
+  #cf{background:#fff8ed;border:1px dashed #f0c48a;color:#8a5a13;border-radius:12px;padding:9px 13px;font-size:13px;max-width:640px}
+  #share{width:100%;max-width:700px;height:74px;border-radius:12px;border:1px solid var(--line);padding:9px;font-family:inherit;
+    font-size:12.5px;color:var(--ink2);resize:none;background:#fff;text-align:left}
+  .row{display:flex;gap:9px;flex-wrap:wrap;justify-content:center}
+
+  /* ---------- mobile pad ---------- */
+  #pad{display:none;gap:9px;justify-content:space-between;margin-top:9px}
+  #pad div{flex:1 1 0;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 0;text-align:center;
+    font-weight:800;font-size:17px;color:var(--ink2);user-select:none}
+  @media (hover:none) and (pointer:coarse){ #pad{display:flex} }
+  .foot{margin-top:9px;font-size:11.5px;color:var(--ink2);line-height:1.6}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+
+    <div id="hud">
+      <div class="meter">
+        <div class="lbl"><span>水位 · 1.5L 大水</span><span id="hydraFlash" class="warnChip"></span><b id="hydraVal">62</b></div>
+        <div class="bar"><i id="hydraFill" style="width:62%"></i>
+          <span class="zone dry" style="left:0;width:44%"></span>
+          <span class="zone ok" style="left:52%;width:30%"></span>
+          <span class="zone risk" style="left:86%;width:14%"></span></div>
+      </div>
+      <div class="meter">
+        <div class="lbl"><span>薄肌值 · 瘦≠弱</span><b id="leanVal">30</b></div>
+        <div class="bar"><i id="leanFill" style="width:30%"></i></div>
+      </div>
+      <div id="right"><span id="clock">60</span>s<span id="combo"></span><span id="mute" title="静音 / M">🔊</span></div>
+    </div>
+
+    <div id="toasts"></div>
+
+    <div class="panel" id="start">
+      <h1>大水时代 · 练薄肌<small>1 分钟 · 喝大水不可豪饮</small></h1>
+      <div class="rules">
+        <span class="k">← → 或 <b>A D</b> 移动 · 鼠标／手指也能拖</span>
+        <span class="k"><b>空格</b> 开合跳（薄肌 <span id="rRep">+0.25</span>）</span>
+        <span><b>1.5L 大水</b> 水位 <span id="rWater">+12</span>（咕咚 · 一秒内涨完）</span>
+        <span><b>小口杯</b> 水位 <span id="rSip">-12</span>（回落）</span>
+        <span><b>奶茶</b> 薄肌 <span id="rTea">-8</span> ·「18 元溢价」</span>
+        <span><b>大杠铃</b> 薄肌 <span id="rBar">-12</span> · 变厚肌 3 秒</span>
+        <span><b>跳绳</b> 薄肌 <span id="rRope">+6</span></span>
+        <span>水位<b>绿区 <span id="rBand">52–82</span></b> 时薄肌才涨</span>
+        <span class="k">超 <span id="rOver">86</span> = 水中毒「肿」</span>
+      </div>
+      <button id="startBtn">开始（第 1 件：把奶茶放下）</button>
+      <div class="hint">最高分：<b id="best0">—</b></div>
+      <div class="hint">1.5L 大水 ≈ 3 元 ｜ 一杯奶茶 ≈ 15–20 元 ｜ 一天 1.5L 足够，别豪饮</div>
+    </div>
+
+    <div class="panel hidden" id="end">
+      <div id="endTitle">—</div>
+      <div id="endStats">
+        <div><b id="sLean">0</b><i>薄肌值</i></div>
+        <div><b id="sGreen">0%</b><i>绿区占比</i></div>
+        <div><b id="sWater">0</b><i>瓶大水</i></div>
+        <div><b id="sStreak">0s</b><i>最长连绿</i></div>
+        <div><b id="sTea">0</b><i>接到的奶茶</i></div>
+      </div>
+      <div id="cf">—</div>
+      <textarea id="share" readonly></textarea>
+      <div class="row">
+        <button id="againBtn">再来一局</button>
+        <button class="ghost" id="saveBtn">保存成绩卡（图片）</button>
+        <button class="ghost" id="copyBtn">复制成绩文案</button>
+      </div>
+      <div class="hint" id="bestLine">最高分：<b id="best1">—</b></div>
+      <div class="hint">点「保存成绩卡」发到群里 / 朋友圈 —— 看谁先当上「圣人不中毒」</div>
+    </div>
+  </div>
+
+  <div id="pad">
+    <div data-act="left">◀</div><div data-act="rep">开合跳</div><div data-act="right">▶</div>
+  </div>
+  <div class="foot">机制：水位必须维持绿区（喝太少脱水、喝太多「水中毒」），绿区里薄肌才涨；接住大杠铃会变厚肌 3 秒。60 秒后结算称号。</div>
+</div>
+
+<script>
+window.__errs = [];
+window.onerror = function(m,s,l,c){ window.__errs.push(m+" @"+l+":"+c); };
+
+(function(){
+"use strict";
+var Q = new URLSearchParams(location.search);
+var BOT = Q.get("bot") === "1";
+var SPEED = Math.max(0.5, Math.min(16, parseFloat(Q.get("speed") || "1") || 1));
+
+var W = 960, H = 600, GROUND = H - 58;
+var cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+function fit(){
+  var dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+fit(); window.addEventListener("resize", fit);
+
+/* ============================ config ============================ */
+var C = {
+  dur: 60,
+  startLean: 15, startHydra: 62,
+  greenLo: 52, greenHi: 82, overHi: 86, underLo: 44,
+  decay: [1.7, 2.0, 2.4, 2.9],          // 水位自然流失 /s per phase（须能被接水补上）
+  pass: 0.90,                            // 绿区被动涨 /s ×comb
+  passOver: -5.0, passUnder: -2.5,       // 红区/干区 被动跌
+  waterHydra: 12, waterLean: 1.2,
+  sipHydra: -12, sipLean: 0.4,
+  teaHydra: 7, teaLean: -8,
+  barLean: -12,
+  ropeLean: 6,
+  repLean: 0.25, repCd: 0.5,
+  moveSpd: 560,
+  phases: [   // t0, spawn/s, fall px/s, mix[water,sip,tea,rope,bar]
+    {t:0,  rate:0.85, fall:150, mix:[.42,.22,.16,.12,.08]},
+    {t:20, rate:1.05, fall:182, mix:[.40,.20,.20,.10,.10]},
+    {t:40, rate:1.25, fall:212, mix:[.36,.18,.24,.10,.12]},
+    {t:52, rate:1.60, fall:246, mix:[.30,.16,.34,.08,.12], rush:true}
+  ]
+};
+var KIND = ["water","sip","tea","rope","bar"];
+var NAMES = {water:"1.5L大水", sip:"小口杯", tea:"奶茶", rope:"跳绳", bar:"大杠铃"};
+
+function phaseAt(t){ var p = C.phases[0]; for(var i=0;i<C.phases.length;i++){ if(t >= C.phases[i].t) p = C.phases[i]; } return p; }
+
+/* ============================ state ============================ */
+var S = null, running = false, last = 0;
+function newState(){
+  return {
+    t:0, hydra:C.startHydra, lean:C.startLean, combo:0, bestStreak:0, streak:0,
+    greenT:0, water:0, sip:0, tea:0, rope:0, bar:0, reps:0,
+    px:W/2, pvx:0, fat:0, fatT:0, shake:0,
+    objs:[], parts:[], floats:[], spawnAcc:0, repCd:0, green:true, ended:false, pend:0, drinkT:0
+  };
+}
+
+/* ============================ audio ============================ */
+var AC=null, master=null, steps=0, nextT=0, musicOn=false, muted=false, mtimer=null;
+function audioInit(){
+  if(AC) return;
+  try{
+    var K = window.AudioContext || window.webkitAudioContext; if(!K) return;
+    AC = new K(); master = AC.createGain(); master.gain.value = 0.30; master.connect(AC.destination);
+  }catch(e){ AC = null; }
+}
+function m2f(m){ return 440*Math.pow(2,(m-69)/12); }
+function tone(f,t,dur,type,vol){
+  if(!AC||muted) return;
+  var o=AC.createOscillator(), g=AC.createGain();
+  o.type=type||"square"; o.frequency.setValueAtTime(f,t);
+  g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol||0.18,t+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+0.03);
+}
+function sweep(f0,f1,t,dur,type,vol){
+  if(!AC||muted) return;
+  var o=AC.createOscillator(), g=AC.createGain();
+  o.type=type||"sine"; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(Math.max(30,f1),t+dur);
+  g.gain.setValueAtTime(vol||0.16,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+0.03);
+}
+function noise(t,dur,vol,hp){
+  if(!AC||muted) return;
+  var n = Math.max(1,Math.floor(AC.sampleRate*dur)), b = AC.createBuffer(1,n,AC.sampleRate), d = b.getChannelData(0);
+  for(var i=0;i<n;i++){ d[i] = (Math.random()*2-1)*(1-i/n); }
+  var s = AC.createBufferSource(); s.buffer = b;
+  var f = AC.createBiquadFilter(); f.type="highpass"; f.frequency.value = hp||1800;
+  var g = AC.createGain(); g.gain.value = vol||0.12;
+  s.connect(f); f.connect(g); g.connect(master); s.start(t);
+}
+var CHORDS = [ [57,60,64,69], [53,57,60,65], [48,52,55,60], [55,59,62,67] ];  // Am F C G
+function bpm(){ var ph = phaseAt(S?S.t:0); return ph.rush ? 168 : (ph.fall>=212 ? 146 : (ph.fall>=182 ? 126 : 110)); }
+function schedule(){
+  if(!musicOn||!AC) return;
+  var spb = 60/bpm()/4;   // 16th
+  while(nextT < AC.currentTime + 0.18){
+    var st = steps % 16, bar = Math.floor(steps/16) % 4, ch = CHORDS[bar];
+    if(st%4===0) tone(m2f(ch[0]-24), nextT, spb*2.6, "triangle", 0.22);
+    if([0,2,4,6,8,10,12,14].indexOf(st)>=0){
+      var seq = [0,1,2,3,2,1,2,3][ (st/2)%8 ];
+      tone(m2f(ch[seq]+12), nextT, spb*1.5, "square", 0.075);
+    }
+    if(st%2===1) noise(nextT, 0.045, 0.05, 5200);
+    steps++; nextT += spb;
+  }
+}
+function musicStart(){
+  audioInit(); if(!AC||musicOn) return;
+  try{ if(AC.state==="suspended") AC.resume(); }catch(e){}
+  musicOn = true; steps = 0; nextT = AC.currentTime + 0.06;
+  mtimer = setInterval(schedule, 25);
+}
+function musicStop(){ musicOn = false; if(mtimer){ clearInterval(mtimer); mtimer = null; } }
+function sfx(kind){
+  if(!AC||muted) return; var t = AC.currentTime + 0.001;
+  if(kind==="gulp"){ noise(t,0.13,0.10,900); sweep(430,150,t,0.16,"sine",0.20); }
+  else if(kind==="blip"){ tone(1180,t,0.07,"triangle",0.14); tone(1560,t+0.05,0.06,"triangle",0.10); }
+  else if(kind==="thud"){ sweep(150,52,t,0.22,"square",0.24); noise(t,0.12,0.16,600); }
+  else if(kind==="sad"){ sweep(320,110,t,0.34,"sawtooth",0.16); }
+  else if(kind==="dry"){ noise(t,0.18,0.07,300); sweep(320,240,t,0.2,"triangle",0.10); }
+  else if(kind==="fan"){ [0,4,7,12].forEach(function(n,i){ tone(m2f(69+n),t+i*0.11,0.24,"square",0.15); }); }
+  else if(kind==="boom"){ sweep(90,40,t,0.5,"sawtooth",0.2); noise(t,0.3,0.14,300); }
+}
+
+/* ============================ toasts ============================ */
+var toastBox = document.getElementById("toasts");
+var LINES = {
+  water:["咕咚！3 块钱的快乐","1.5L，先灌为敬","大水 +1，溢价 -0"],
+  over:["⚠ 水位超标：不可豪饮！","三甲医生：住手","再喝就「水中毒」了"],
+  under:["嘴唇裂了，脱水","已经干成标本"],
+  sip:["小口回水，专业","这一口是技术活"],
+  tea:["18 元，喝的是溢价","奶茶刺客 +1","这一杯，薄肌 -7"],
+  bar:["猛男巨石！薄肌碎了","大重量 ≠ 薄肌","变厚肌 3 秒，难看"],
+  rope:["跳绳 +5，薄肌在长","轻器械，够用"],
+  rep:["开合跳 +0.4","白练了（不在绿区）"]
+};
+function toast(kind, txt){
+  var d = document.createElement("div");
+  d.className = "toast" + (kind==="warn"?" warn":(kind==="good"?" good":""));
+  d.textContent = txt || LINES[kind === "dry" ? "rep" : (kind||"water")][0];
+  toastBox.appendChild(d);
+  setTimeout(function(){ d.remove(); }, 1900);
+  while(toastBox.children.length > 3) toastBox.firstChild.remove();
+}
+var lastToast = {};
+function say(key, cls, force){
+  var now = performance.now();
+  if(!force && lastToast[key] && now - lastToast[key] < 2200) return;
+  lastToast[key] = now;
+  var arr = LINES[key] || ["…"];
+  toast(cls, arr[Math.floor(Math.random()*arr.length)]);
+}
+
+/* ============================ drawing ============================ */
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+var bubbles = [];
+for(var i=0;i<22;i++) bubbles.push({x:Math.random()*W, y:Math.random()*H, r:3+Math.random()*11, s:8+Math.random()*22});
+
+function drawBG(dt){
+  var g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#eaf5ff"); g.addColorStop(.62,"#f8fcff"); g.addColorStop(1,"#eef7ee");
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  ctx.save();
+  for(var i=0;i<bubbles.length;i++){
+    var b = bubbles[i];
+    b.y -= b.s*dt*0.25; if(b.y < -20){ b.y = H+20; b.x = Math.random()*W; }
+    ctx.globalAlpha = 0.16; ctx.fillStyle = "#9fd2ef";
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,6.284); ctx.fill();
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.globalAlpha = 0.09; ctx.fillStyle = "#2b9fe0"; ctx.font = "800 96px system-ui,sans-serif";
+  ctx.fillText("1.5L", 40, 150);
+  ctx.font = "800 40px system-ui,sans-serif"; ctx.fillText("大水时代", 42, 196);
+  ctx.restore();
+  // floor
+  ctx.fillStyle = "#dff0e2"; ctx.fillRect(0,GROUND+16,W,H-GROUND-16);
+  ctx.strokeStyle = "#c6e2cb"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0,GROUND+16); ctx.lineTo(W,GROUND+16); ctx.stroke();
+  // green band hint on floor
+  ctx.fillStyle = "rgba(31,174,107,.10)"; ctx.fillRect(0,GROUND+16,W,6);
+}
+
+function drawKind(k, o, dt){
+  var x = o.x, y = o.y, r = 27;
+  ctx.save(); ctx.translate(x,y);
+  if(k==="water"){
+    ctx.fillStyle = "#2b9fe0"; roundRect(-16,-27,32,54,8); ctx.fill();
+    ctx.fillStyle = "#bfe7fb"; roundRect(-14,-29,28,12,6); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = "800 11px system-ui,sans-serif"; ctx.fillText("1.5L",-13,6);
+    ctx.fillStyle = "#eaf7ff"; ctx.fillRect(-12,-8,24,3);
+  } else if(k==="sip"){
+    ctx.fillStyle = "#ffffff"; roundRect(-13,-20,26,38,6); ctx.fill();
+    ctx.strokeStyle = "#9cc7de"; ctx.lineWidth = 2; roundRect(-13,-20,26,38,6); ctx.stroke();
+    ctx.fillStyle = "#cfe9f7"; ctx.fillRect(-13,4,26,14);
+  } else if(k==="tea"){
+    ctx.fillStyle = "#c98b5e"; roundRect(-15,-24,30,46,7); ctx.fill();
+    ctx.fillStyle = "#f0d9bd"; roundRect(-19,-30,38,9,4); ctx.fill();
+    ctx.strokeStyle = "#e5484d"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(2,-30); ctx.lineTo(12,-52); ctx.stroke();
+    ctx.fillStyle = "#5a3a22";
+    for(var i=0;i<3;i++){ ctx.beginPath(); ctx.arc(-7+i*7, 12, 3.4, 0, 6.284); ctx.fill(); }
+    ctx.fillStyle = "#fff"; ctx.font = "800 10px system-ui,sans-serif"; ctx.fillText("¥18",-13,2);
+  } else if(k==="rope"){
+    ctx.strokeStyle = "#e5484d"; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0,-4,17,3.3,6.1); ctx.stroke();
+    ctx.fillStyle = "#7a5230"; ctx.fillRect(-15,-24,9,13); ctx.fillRect(6,-24,9,13);
+  } else {
+    ctx.fillStyle = "#6b7785"; ctx.fillRect(-24,-3,48,7);
+    ctx.fillStyle = "#3d4752"; ctx.beginPath(); ctx.arc(-21,0,14,0,6.284); ctx.fill();
+    ctx.beginPath(); ctx.arc(21,0,14,0,6.284); ctx.fill();
+    ctx.fillStyle = "#8d99a6"; ctx.beginPath(); ctx.arc(-21,0,7,0,6.284); ctx.fill();
+    ctx.beginPath(); ctx.arc(21,0,7,0,6.284); ctx.fill();
+  }
+  ctx.restore();
+  if(k==="tea"){ ctx.save(); ctx.globalAlpha=.5; ctx.fillStyle="#e5484d"; ctx.font="800 12px system-ui,sans-serif"; ctx.fillText("溢价", x-16, y-38); ctx.restore(); }
+}
+
+function drawPlayer(S){
+  var fat = S.fat, w = 1 + fat*1.5, h1 = 1 - fat*0.10;
+  var x = S.px, y = GROUND;
+  ctx.save();
+  // shadow
+  ctx.globalAlpha = .16; ctx.fillStyle = "#12313f";
+  ctx.beginPath(); ctx.ellipse(x, y+7, 22*(1+fat*.5), 6, 0, 0, 6.284); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "#12313f"; ctx.lineCap = "round";
+  // legs
+  ctx.lineWidth = 6*w; ctx.beginPath(); ctx.moveTo(x-1, y-30*h1); ctx.lineTo(x-11, y); ctx.moveTo(x+1, y-30*h1); ctx.lineTo(x+11, y); ctx.stroke();
+  // body (belly bulges when hydra high)
+  ctx.lineWidth = 8*w; ctx.beginPath(); ctx.moveTo(x, y-30*h1); ctx.lineTo(x, y-64*h1); ctx.stroke();
+  if(S.hydra > C.overHi){
+    ctx.globalAlpha = .85; ctx.fillStyle = "#7fd4f7";
+    ctx.beginPath(); ctx.ellipse(x, y-48, 16+ (S.hydra-C.overHi)*0.9, 15, 0,0,6.284); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  if(S.hydra < C.underLo){ ctx.globalAlpha=.7; ctx.fillStyle="#f0c48a"; ctx.beginPath(); ctx.arc(x,y-46,4+ (C.underLo-S.hydra)*0.12,0,6.284); ctx.fill(); ctx.globalAlpha=1; }
+  // arms
+  ctx.lineWidth = 5.5*w;
+  var sw = Math.sin(S.t*7) * 12;
+  ctx.beginPath(); ctx.moveTo(x, y-56*h1); ctx.lineTo(x-15, y-40+sw*0.4); ctx.moveTo(x, y-56*h1); ctx.lineTo(x+15, y-40-sw*0.4); ctx.stroke();
+  // head
+  ctx.fillStyle = "#12313f"; ctx.beginPath(); ctx.arc(x, y-74*h1, 12, 0, 6.284); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x-4, y-76*h1, 2.1, 0, 6.284); ctx.arc(x+4, y-76*h1, 2.1, 0, 6.284); ctx.fill();
+  // mouth
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  if(S.hydra > C.overHi){ ctx.arc(x, y-71*h1, 3.4, 0.15, 3.0); }
+  else if(S.hydra < C.underLo){ ctx.arc(x, y-66*h1, 3.4, 3.3, 6.1); }
+  else { ctx.moveTo(x-3.4, y-70*h1); ctx.lineTo(x+3.4, y-70*h1); }
+  ctx.stroke();
+  if(fat>0.35){ ctx.fillStyle = "#e5484d"; ctx.font="800 13px system-ui,sans-serif"; ctx.fillText("厚肌", x-16, y-96); }
+  if(S.hydra > C.overHi){ ctx.fillStyle="#2b9fe0"; ctx.font="800 13px system-ui,sans-serif"; ctx.fillText("肿", x-7, y-100); }
+  else if(S.hydra < C.underLo){ ctx.fillStyle="#c98b5e"; ctx.font="800 13px system-ui,sans-serif"; ctx.fillText("干", x-7, y-100); }
+  ctx.restore();
+}
+
+function drawParts(dt){
+  for(var i=S.parts.length-1;i>=0;i--){
+    var p = S.parts[i];
+    p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 900*dt; p.life -= dt;
+    if(p.life <= 0){ S.parts.splice(i,1); continue; }
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.life*2));
+    ctx.fillStyle = p.c;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.284); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  for(var j=S.floats.length-1;j>=0;j--){
+    var f = S.floats[j]; f.y -= 34*dt; f.life -= dt;
+    if(f.life<=0){ S.floats.splice(j,1); continue; }
+    ctx.globalAlpha = Math.max(0,Math.min(1,f.life*1.4));
+    ctx.fillStyle = f.c; ctx.font = "800 17px system-ui,sans-serif";
+    ctx.fillText(f.txt, f.x-22, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+function burst(x,y,col,n,spd){
+  for(var i=0;i<n;i++){
+    var a = Math.random()*6.284;
+    S.parts.push({x:x,y:y,vx:Math.cos(a)*spd*(0.4+Math.random()),vy:Math.sin(a)*spd*0.7-60,
+      r:2+Math.random()*3.4, c:col, life:0.5+Math.random()*0.4});
+  }
+}
+function floatTxt(x,y,txt,col){ S.floats.push({x:x,y:y,txt:txt,c:col,life:1.1}); }
+
+/* ============================ gameplay ============================ */
+function spawn(){
+  var ph = phaseAt(S.t), r = Math.random(), acc = 0, kind = "water";
+  for(var i=0;i<KIND.length;i++){ acc += ph.mix[i]; if(r <= acc){ kind = KIND[i]; break; } }
+  var o = {k:kind, x:60+Math.random()*(W-120), y:-40, vy:ph.fall*(0.9+Math.random()*0.25), spin:Math.random()*6.284};
+  S.objs.push(o);
+}
+function endGame(){
+  setHud(false);
+  if(S.ended) return;
+  S.ended = true; running = false; musicStop(); sfx("fan");
+  var greenPct = Math.round(100 * S.greenT / C.dur);
+  var lean = Math.round(S.lean);
+  var title;
+  if(lean < 30) title = "奶茶刺客的猎物";
+  else if(lean < 50) title = "普通打工人（还没开始练）";
+  else if(lean < 66) title = "薄肌预备生";
+  else if(lean < 80) title = "薄肌男孩 / 薄肌女孩";
+  else if(lean < 92) title = "大水时代的节流冠军";
+  else title = "不需要奶茶的圣人（且没被水中毒带走）";
+  document.getElementById("endTitle").textContent = "称号：" + title;
+  document.getElementById("endTitle").className = lean >= 92 ? "gold" : "";
+  document.getElementById("sLean").textContent = lean;
+  document.getElementById("sGreen").textContent = greenPct + "%";
+  document.getElementById("sWater").textContent = S.water;
+  document.getElementById("sStreak").textContent = S.bestStreak.toFixed(0) + "s";
+  document.getElementById("sTea").textContent = S.tea;
+  var cf = [];
+  if(S.tea > 0) cf.push("少接 " + S.tea + " 杯奶茶 → 薄肌值 +" + Math.round(S.tea*Math.abs(C.teaLean)));
+  if(S.bar > 0) cf.push(S.bar + " 次大杠铃让你白掉 " + Math.round(S.bar*Math.abs(C.barLean)) + " 点（换成跳绳本可 +" + Math.round(S.bar*C.ropeLean) + "）");
+  if(greenPct < 45) cf.push("你的水位像过山车，绿区只有 " + greenPct + "%");
+  if(S.hydra > C.overHi) cf.push("结束时还在「水中毒」边缘——医生的话没听");
+  document.getElementById("cf").textContent = cf.length ? "反事实：" + cf.join("；") : "反事实：这一局没有可归咎的失误";
+  var share = "我在【大水时代·练薄肌】练了 60 秒：薄肌值 " + lean + "｜绿区 " + greenPct + "%｜喝了 " + S.water +
+    " 瓶 1.5L 大水｜最长连绿 " + S.bestStreak.toFixed(0) + "s｜开合跳 " + S.reps + " 次 —— 称号「" + title +
+    "」。" + (S.tea === 0 ? "18 元的奶茶我一杯没接。" : "我接了 " + S.tea + " 杯奶茶（罪过）。") + "#大水时代 #薄肌";
+  document.getElementById("share").value = share;
+  var best = 0;
+  try{ best = parseInt(localStorage.getItem("ds_lean_best") || "0", 10) || 0; }catch(e){ best = 0; }
+  if(lean > best){ best = lean; try{ localStorage.setItem("ds_lean_best", String(best)); }catch(e){} }
+  document.getElementById("best1").textContent = best;
+  document.getElementById("end").classList.remove("hidden");
+}
+function setHud(on){ var h = document.getElementById("hud"); if(h) h.style.opacity = on ? "1" : "0"; }
+function reset(){
+  setHud(true);
+  S = newState(); running = true; last = performance.now();
+  document.getElementById("end").classList.add("hidden");
+  document.getElementById("start").classList.add("hidden");
+  toastBox.innerHTML = ""; lastToast = {};
+  if(BOT){ S.px = W/2; }
+}
+
+/* input */
+var keys = {};
+var pointerX = null;
+document.addEventListener("keydown", function(e){
+  keys[e.key.toLowerCase()] = true;
+  if(e.code === "Space"){ e.preventDefault(); doRep(); }
+  if(e.key.toLowerCase() === "m") toggleMute();
+});
+document.addEventListener("keyup", function(e){ keys[e.key.toLowerCase()] = false; });
+cv.addEventListener("pointerdown", function(e){
+  var r = cv.getBoundingClientRect(); pointerX = (e.clientX - r.left) * (W / r.width);
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener("pointermove", function(e){
+  if(pointerX === null) return;
+  var r = cv.getBoundingClientRect(); pointerX = (e.clientX - r.left) * (W / r.width);
+});
+cv.addEventListener("pointerup", function(){ pointerX = null; });
+cv.addEventListener("pointercancel", function(){ pointerX = null; });
+document.getElementById("pad").addEventListener("pointerdown", function(e){
+  var a = e.target.getAttribute && e.target.getAttribute("data-act");
+  if(a === "rep") doRep();
+  else if(a === "left") keys["arrowleft"] = true;
+  else if(a === "right") keys["arrowright"] = true;
+});
+document.addEventListener("pointerup", function(){ keys["arrowleft"] = false; keys["arrowright"] = false; });
+
+function doRep(){
+  if(!running || S.repCd > 0) return;
+  S.repCd = C.repCd; S.reps++;
+  if(S.green){ S.lean += C.repLean; burst(S.px, GROUND-40, "#ffb07a", 5, 120); floatTxt(S.px+14, GROUND-70, "+0.25 薄肌", "#1fae6b"); }
+  else { sfx("dry"); say("rep","warn",true); floatTxt(S.px+14, GROUND-70, "白练", "#e5484d"); }
+}
+var muteBtn = document.getElementById("mute");
+function toggleMute(){
+  muted = !muted;
+  if(master) master.gain.value = muted ? 0 : 0.30;
+  muteBtn.textContent = muted ? "🔇" : "🔊";
+}
+muteBtn.addEventListener("click", toggleMute);
+
+/* ============================ update ============================ */
+function update(dt){
+  var ph = phaseAt(S.t);
+  S.t += dt;
+  if(S.t >= C.dur){ S.t = C.dur; endGame(); return; }
+  var di = 0; for(var i=0;i<C.phases.length;i++){ if(S.t >= C.phases[i].t) di = i; }
+  S.hydra -= C.decay[di]*dt;
+  /* 咕咚：把已喝下去的量按 14/s 释放进水位，给玩家 1 秒反应窗口去踩刹车 */
+  if(S.pend !== 0){
+    var stp = (S.pend > 0 ? 1 : -1) * Math.min(Math.abs(S.pend), 14*dt);
+    S.hydra += stp; S.pend -= stp;
+    if(Math.abs(S.pend) < 0.4) S.pend = 0;
+  }
+  S.drinkT = Math.abs(S.pend) > 0.5 ? 1 : Math.max(0, S.drinkT - dt*2);
+
+  // 绿区判定
+  var wasGreen = S.green;
+  S.green = S.hydra >= C.greenLo && S.hydra <= C.greenHi;
+  if(S.green){
+    S.greenT += dt; S.streak += dt; if(S.streak > S.bestStreak) S.bestStreak = S.streak;
+    S.lean += C.pass * comboMul() * (S.fatT > 0 ? 0.5 : 1) * dt;
+  } else {
+    S.streak = 0;
+    S.lean += (S.hydra > C.overHi ? C.passOver : (S.hydra < C.underLo ? C.passUnder : -0.3)) * dt;
+    if(S.hydra > C.overHi) say("over","warn");
+    else if(S.hydra < C.underLo) say("under","warn");
+  }
+  var hf = document.getElementById("hydraFlash");
+  if(S.drinkT > 0.5){ hf.textContent = "咕咚咕咚… 还在涨"; hf.style.opacity = 0.85; hf.style.color = "#2b9fe0"; }
+  else if(S.hydra > C.overHi){ hf.textContent = "⚠ 水位超标 · 不可豪饮！"; hf.style.opacity = 1; hf.style.color = ""; }
+  else if(S.hydra < C.underLo){ hf.textContent = "⚠ 脱水 · 嘴唇开裂"; hf.style.opacity = 1; }
+  else { hf.style.opacity = 0; }
+  S.hydra = Math.max(0, Math.min(100, S.hydra));
+  S.lean = Math.max(0, Math.min(100, S.lean));
+
+  S.repCd = Math.max(0, S.repCd - dt);
+  S.fatT = Math.max(0, S.fatT - dt); S.fat = S.fatT > 0 ? 1 : 0;
+  S.shake = Math.max(0, S.shake - dt*3.2);
+
+  // spawn
+  S.spawnAcc += dt * ph.rate;
+  while(S.spawnAcc >= 1){ S.spawnAcc -= 1; spawn(); }
+
+  // move
+  var mv = 0;
+  if(keys["arrowleft"] || keys["a"]) mv -= 1;
+  if(keys["arrowright"] || keys["d"]) mv += 1;
+  if(mv !== 0) pointerX = null;
+  if(pointerX !== null){
+    var d = pointerX - S.px;
+    mv = Math.max(-1, Math.min(1, d/70));
+  }
+  if(BOT){ mv = botMove(); }
+  S.px += mv * C.moveSpd * dt;
+  S.px = Math.max(26, Math.min(W-26, S.px));
+
+  // objects
+  for(var k=S.objs.length-1;k>=0;k--){
+    var o = S.objs[k];
+    o.y += o.vy*dt; o.spin += dt*2;
+    var y0 = o.y - o.vy*dt;                                    /* 上一帧 y：扫掠判定，避免低帧率/高速下穿透接水框 */
+    var yHi = Math.max(y0, o.y), yLo = Math.min(y0, o.y);
+    var hit = Math.abs(o.x - S.px) < 26 && yHi > GROUND-104 && yLo < GROUND+16;
+    if(hit){ apply(o); S.objs.splice(k,1); continue; }
+    if(o.y > H+40) S.objs.splice(k,1);
+  }
+}
+function apply(o){
+  var k = o.k;
+  if(k === "water"){ S.pend += C.waterHydra; S.lean += C.waterLean; S.water++; sfx("gulp"); burst(o.x,o.y,"#7fd4f7",10,170); floatTxt(o.x,o.y-10,"咕咚… +" + C.waterHydra + " 水位","#2b9fe0"); say("water","good"); }
+  else if(k === "sip"){ S.pend += C.sipHydra; S.sip++; sfx("blip"); burst(o.x,o.y,"#cfe9f7",6,120); floatTxt(o.x,o.y-10,"小口回水","#3d5f70"); say("sip","good"); }
+  else if(k === "tea"){ S.pend += C.teaHydra; S.lean += C.teaLean; S.tea++; sfx("sad"); burst(o.x,o.y,"#c98b5e",10,150); floatTxt(o.x,o.y-14,"溢价 -7 薄肌","#e5484d"); say("tea","warn",true); }
+  else if(k === "rope"){ S.lean += C.ropeLean; S.rope++; sfx("blip"); burst(o.x,o.y,"#ffb07a",8,140); floatTxt(o.x,o.y-12,"跳绳 +5","#1fae6b"); say("rope","good"); }
+  else { S.lean += C.barLean; S.bar++; S.fatT = 3; S.shake = 1; sfx("thud"); burst(o.x,o.y,"#8d99a6",12,180); floatTxt(o.x,o.y-16,"厚肌 -12","#e5484d"); say("bar","warn",true); }
+}
+/* autopilot — verification hook only (?bot=1) */
+function botMove(){
+  /* 验证钩子：模拟“会玩的人”。用有效水位（当前+正在咕咚的量）决策，才不会喝过头 */
+  var eff = S.hydra + S.pend;
+  var want = null, crit = -1e9;
+  for(var i=0;i<S.objs.length;i++){
+    var o = S.objs[i];
+    if(o.k === "tea" || o.k === "bar") continue;
+    if(o.y < -8) continue;
+    var ok = (o.k === "water" && eff < C.greenHi - 4) || (o.k === "sip" && eff > C.greenLo + 4) || (o.k === "rope");
+    if(!ok) continue;
+    var tHit = Math.max(0, (GROUND - 64 - o.y) / o.vy);
+    var tGo  = Math.abs(o.x - S.px) / C.moveSpd;
+    if(tGo > tHit + 0.25) continue;
+    var pri = o.y + (o.k === "rope" ? 40 : 0) + (o.k === "sip" && eff > C.greenHi - 6 ? 80 : 0);
+    if(pri > crit){ crit = pri; want = o.x; }
+  }
+  if(S.repCd <= 0 && S.green) doRep();
+  if(want === null){
+    var fear = null, fmin = 1e9;                 /* 躲开落下的奶茶/杠铃 */
+    for(var j=0;j<S.objs.length;j++){
+      var q = S.objs[j];
+      if(q.k !== "tea" && q.k !== "bar") continue;
+      if(q.y < 0) continue;
+      var th = (GROUND - 64 - q.y) / q.vy;
+      if(th > 1.1 || Math.abs(q.x - S.px) > 86) continue;
+      if(th < fmin){ fmin = th; fear = q; }
+    }
+    if(fear){ return (fear.x >= S.px) ? -1 : 1; }
+    if(eff > C.greenHi + 2) return -0.2;
+    if(eff < C.greenLo - 2) return 0.2;
+    return 0;
+  }
+  return Math.max(-1, Math.min(1, (want - S.px)/14));
+}
+/* ============================ render ============================ */
+var elClock = document.getElementById("clock"), elCombo = document.getElementById("combo");
+var elHF = document.getElementById("hydraFill"), elLF = document.getElementById("leanFill");
+var elHV = document.getElementById("hydraVal"), elLV = document.getElementById("leanVal");
+function render(dt){
+  ctx.save();
+  if(S.shake > 0){ ctx.translate((Math.random()-.5)*14*S.shake, (Math.random()-.5)*14*S.shake); }
+  drawBG(dt);
+  var i;
+  for(i=0;i<S.objs.length;i++) drawKind(S.objs[i].k, S.objs[i], dt);
+  drawPlayer(S);
+  drawParts(dt);
+  ctx.restore();
+
+  elClock.textContent = Math.max(0, Math.ceil(C.dur - S.t));
+  elCombo.textContent = S.combo > 0 ? " ×" + comboMul().toFixed(2) : "";
+  elHF.style.width = S.hydra + "%"; elLF.style.width = S.lean + "%";
+  elHV.textContent = Math.round(S.hydra); elLV.textContent = Math.round(S.lean);
+}
+/* combo: 连续接水（不被奶茶打断）*/
+function bumpCombo(){ S.combo++; }
+function comboMul(){ return Math.min(1.4, 1 + S.combo*0.05); }
+var _apply = apply;
+apply = function(o){ if(o.k === "water"){ S.combo++; } else if(o.k === "tea" || o.k === "bar"){ S.combo = 0; } _apply(o); };
+
+/* ============================ loop ============================ */
+function frame(now){
+  var dt = Math.min(0.05, (now - last) / 1000) * SPEED;
+  last = now;
+  if(running && S){ update(dt); }
+  if(S){ render(dt); }
+  requestAnimationFrame(frame);
+}
+
+/* 规则里的数字一律从 C 生成，避免调参后说明与实际不符 */
+function fillRules(){
+  var t = function(id, v){ var el = document.getElementById(id); if(el) el.textContent = v; };
+  t("rRep", "+" + C.repLean); t("rWater", "+" + C.waterHydra); t("rSip", C.sipHydra);
+  t("rTea", C.teaLean); t("rBar", C.barLean); t("rRope", "+" + C.ropeLean);
+  t("rBand", C.greenLo + "–" + C.greenHi); t("rOver", C.overHi);
+}
+fillRules();
+
+/* 成绩卡（图片）：分享用的一屏 */
+function wrapLines(ctx, text, maxW){
+  var toks = text.match(/[A-Za-z0-9]+(?:[.%][A-Za-z0-9]+)*(?:[ \t]?[点杯瓶次秒个分])?|[ \t]+|[\s\S]/g) || [];
+  var out = [], line = "";
+  for(var i = 0; i < toks.length; i++){
+    var t = toks[i];
+    if(/^[ \t]+$/.test(t)){ if(!line) continue; t = " "; }
+    var t2 = line + t;
+    if(ctx.measureText(t2).width > maxW && line){
+      if(/^[），。、」】！？；：%]/.test(t)){ out.push(t2); line = ""; }  /* 收尾符号不另起一行 */
+      else { out.push(line); line = t; }
+    } else line = t2;
+  }
+  if(line) out.push(line);
+  for(var k = 1; k < out.length; k++){                       /* 收尾标点不孤行：从下一行回拉 */
+    if(/^[），。、」】！？；：%]/.test(out[k])){
+      out[k-1] += out[k].charAt(0); out[k] = out[k].slice(1);
+      if(!out[k]){ out.splice(k, 1); k--; }
+    }
+  }
+  return out;
+}
+function saveCard(){
+  var lean = Math.round(S.lean), greenPct = Math.round(100 * S.greenT / C.dur);
+  var title = document.getElementById("endTitle").textContent.replace("称号：", "");
+  var F = "'PingFang SC','Microsoft YaHei',sans-serif";
+  var mx = document.createElement("canvas").getContext("2d");          /* 量算画布（不显示） */
+
+  /* ---------- 第一遍：量算 ---------- */
+  var tf = 46, tl;
+  while(tf > 28){ mx.font = "900 " + tf + "px " + F; tl = wrapLines(mx, title, 800); if(tl.length <= 2) break; tf -= 2; }
+  var tstep = Math.round(tf * 1.28);
+  mx.font = "700 25px " + F;
+  var cl = wrapLines(mx, document.getElementById("cf").textContent, 700).slice(0, 5);
+  mx.font = "700 27px " + F;
+  var sl = wrapLines(mx, document.getElementById("share").value.split("#")[0].trim(), 740).slice(0, 8);
+
+  /* ---------- 流水布局（全部相对累计，互不重叠） ---------- */
+  var cfH = 44 + cl.length * 46, shH = sl.length * 44 + 30;
+  var y0       = 168 + tl.length * tstep + 40;
+  var yNum     = y0 + 130, yLab = y0 + 176, yCell = y0 + 220;
+  var yCard    = yCell + 108 + 40, yCfTxt = yCard + 44;
+  var yShareBx = yCard + cfH + 46, yShareTx = yShareBx + 34;
+  var yHash    = yShareBx + shH + 52, yFoot = yHash + 46;
+  var W = 900, H = Math.round(yFoot + 34);
+
+  /* ---------- 第二遍：绘制 ---------- */
+  var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  var x = cv.getContext("2d");
+  var g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#e9f5ff"); g.addColorStop(.55, "#fbfdff"); g.addColorStop(1, "#eef8ef");
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.fillStyle = "#2b9fe0"; x.fillRect(0, 0, W, 12);
+  x.textAlign = "center";
+  x.fillStyle = "#3d5f70"; x.font = "600 26px " + F;
+  x.fillText("大水时代 · 练薄肌　1 分钟一局", 450, 92);
+  x.fillStyle = lean >= 92 ? "#c8901a" : "#ff7a45"; x.font = "900 " + tf + "px " + F;
+  for(var i = 0; i < tl.length; i++) x.fillText(tl[i], 450, 168 + i * tstep);
+  x.fillStyle = "#12313f"; x.font = "900 150px " + F; x.fillText(String(lean), 450, yNum);
+  x.fillStyle = "#3d5f70"; x.font = "700 24px " + F; x.fillText("薄肌值（绿区时才会涨）", 450, yLab);
+  var cells = [["绿区占比", greenPct + "%"], ["喝了大水", S.water + " 瓶"], ["最长连绿", S.bestStreak.toFixed(0) + "s"], ["接到的奶茶", S.tea + " 杯"], ["开合跳", S.reps + " 次"]];
+  var cw = 152, gap = 12, x0 = (W - (cw * cells.length + gap * (cells.length - 1))) / 2;
+  for(var j = 0; j < cells.length; j++){
+    var cx = x0 + j * (cw + gap);
+    x.fillStyle = "#ffffff"; x.strokeStyle = "#d8e8f2"; x.lineWidth = 2;
+    x.beginPath(); x.roundRect ? x.roundRect(cx, yCell, cw, 108, 18) : x.rect(cx, yCell, cw, 108); x.fill(); x.stroke();
+    x.fillStyle = "#12313f"; x.font = "900 36px " + F; x.fillText(cells[j][1], cx + cw / 2, yCell + 52);
+    x.fillStyle = "#3d5f70"; x.font = "600 19px " + F; x.fillText(cells[j][0], cx + cw / 2, yCell + 84);
+  }
+  x.fillStyle = "#fff8ed"; x.strokeStyle = "#f0c48a"; x.lineWidth = 2;
+  x.beginPath(); x.roundRect ? x.roundRect(70, yCard, 760, cfH, 20) : x.rect(70, yCard, 760, cfH); x.fill(); x.stroke();
+  x.fillStyle = "#8a5a13"; x.font = "700 25px " + F; x.textAlign = "left";
+  for(var k = 0; k < cl.length; k++) x.fillText(cl[k], 96, yCfTxt + k * 46);
+  x.textAlign = "center";
+  x.fillStyle = "#ffffff"; x.strokeStyle = "#d8e8f2"; x.lineWidth = 2;
+  x.beginPath(); x.roundRect ? x.roundRect(80, yShareBx, 740, shH, 18) : x.rect(80, yShareBx, 740, shH); x.fill(); x.stroke();
+  x.fillStyle = "#12313f"; x.font = "700 27px " + F;
+  for(var m = 0; m < sl.length; m++) x.fillText(sl[m], 450, yShareTx + m * 44);
+  x.fillStyle = "#3d5f70"; x.font = "700 24px " + F;
+  x.fillText("#大水时代　#薄肌　#喝大水不可豪饮", 450, yHash);
+  var d = new Date();
+  x.fillStyle = "#7d9aab"; x.font = "600 20px " + F;
+  x.fillText(d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate() + "　自测成绩，非医疗建议；一天 1.5L 足够，别豪饮", 450, yFoot);
+  try{
+    var a = document.createElement("a"); a.href = cv.toDataURL("image/png"); a.download = "薄肌成绩卡_" + lean + ".png";
+    document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ try{ window.open(cv.toDataURL("image/png"), "_blank"); }catch(e2){} }
+}
+
+/* ============================ boot ============================ */
+try{
+  var b0 = parseInt(localStorage.getItem("ds_lean_best") || "0", 10) || 0;
+  document.getElementById("best0").textContent = b0 ? b0 : "—";
+}catch(e){}
+
+document.getElementById("startBtn").addEventListener("click", function(){ audioInit(); musicStart(); reset(); });
+document.getElementById("againBtn").addEventListener("click", function(){ musicStart(); reset(); });
+document.getElementById("saveBtn").addEventListener("click", saveCard);
+document.getElementById("copyBtn").addEventListener("click", function(e){
+  var ta = document.getElementById("share");
+  var done = function(){ e.target.textContent = "已复制 ✓"; setTimeout(function(){ e.target.textContent = "复制成绩文案"; }, 1400); };
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(ta.value).then(done, function(){ ta.select(); document.execCommand("copy"); done(); }); }
+    else { ta.select(); document.execCommand("copy"); done(); }
+  }catch(err){ ta.select(); }
+});
+
+S = newState(); running = false; last = performance.now(); setHud(false);
+requestAnimationFrame(frame);
+
+if(BOT){
+  setTimeout(function(){ audioInit(); reset(); }, 200);
+}
+window.__game = { get S(){ return S; }, C: C, end: endGame, start: reset, bot: BOT, saveCard: saveCard };
+})();
+</script>
+</body>
+</html>
