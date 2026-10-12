@@ -52,6 +52,8 @@
   /* ---------- panels ---------- */
   .panel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:12px;padding:22px;background:rgba(242,248,252,.94);backdrop-filter:blur(4px);text-align:center}
+  #icv{position:absolute;inset:0;width:100%;height:100%;z-index:40;background:#eef6ff}
+  #icv.hide{display:none}
   .panel.hidden{display:none}
   .panel h1{margin:0;font-size:30px;letter-spacing:1px}
   .panel h1 small{display:block;font-size:13px;font-weight:600;color:var(--ink2);letter-spacing:2px;margin-top:6px}
@@ -105,6 +107,7 @@
     </div>
 
     <div id="toasts"></div>
+    <canvas id="icv" width="960" height="600" class="hide"></canvas>
 
     <div class="panel" id="start">
       <h1>大水时代 · 练薄肌<small>1 分钟 · 喝大水不可豪饮</small></h1>
@@ -120,6 +123,7 @@
         <span class="k">超 <span id="rOver">86</span> = 水中毒「肿」</span>
       </div>
       <button id="startBtn">开始（第 1 件：把奶茶放下）</button>
+      <button id="introBtn" class="ghost">▶ 看开场 3 秒（绿巨人薄肌版）</button>
       <div class="hint">最高分：<b id="best0">—</b></div>
       <div class="hint">1.5L 大水 ≈ 3 元 ｜ 一杯奶茶 ≈ 15–20 元 ｜ 一天 1.5L 足够，别豪饮</div>
     </div>
@@ -804,6 +808,248 @@ function saveCard(){
   }catch(e){ try{ window.open(cv.toDataURL("image/png"), "_blank"); }catch(e2){} }
 }
 
+/* ================= 开场 3 秒：绿巨人薄肌版（独立覆盖层，可跳过；BOT 模式不跑） =================
+   分镜取自《怪物养生图鉴》① ：变身完成 → 别急先喝口水 → 先别动我上个秤(18.6%) → 楼，还是没砸 */
+var ICV = null, ICTX = null, introRAF = 0, introT0 = 0, introOn = false, INTRO_MS = 3000;
+var IF = "'PingFang SC','Microsoft YaHei',sans-serif";
+var IDUST = [[-1,26,.9],[.3,34,.7],[1.6,30,.8],[2.4,38,.6],[3.3,24,.9],[4.1,33,.7],[5.0,28,.8],[5.8,36,.6],[-2.2,31,.75],[2.0,22,.85],[4.6,40,.65],[-.8,29,.8]];
+
+function hulkFig(c, x, y, s, girth, pantDrop, armUp, mood){
+  var w = 132 * s * girth, hipY = -104 * s, shY = -252 * s, skin = "#4fb37a", limb = "#43a06c";
+  c.save(); c.translate(x, y);
+  /* 影 */
+  c.fillStyle = "rgba(30,60,80,.10)"; c.beginPath(); c.ellipse(0, 4 * s, 78 * s * girth, 13 * s, 0, 0, 6.3); c.fill();
+  /* 腿：先在髋下画，短裤只压住上段 → 腿是看得见的 */
+  c.strokeStyle = limb; c.lineWidth = 26 * s * girth; c.lineCap = "round";
+  c.beginPath(); c.moveTo(-24 * s, hipY); c.lineTo(-27 * s, 0);
+  c.moveTo(24 * s, hipY); c.lineTo(27 * s, 0); c.stroke();
+  /* 短裤：pantDrop 越大越往下滑 = 裤子反而松了 */
+  var py = hipY - 34 * s + pantDrop * 30 * s;
+  c.fillStyle = "#7b5bd6"; c.beginPath();
+  if(c.roundRect) c.roundRect(-w * .52, py, w * 1.04, 66 * s, 14 * s); else c.rect(-w * .52, py, w * 1.04, 66 * s);
+  c.fill();
+  /* 躯干：倒梯形（宽肩窄腰），薄肌时整体变窄 */
+  c.fillStyle = skin; c.beginPath();
+  c.moveTo(-w / 2, shY + 16 * s);
+  c.quadraticCurveTo(0, shY - 18 * s, w / 2, shY + 16 * s);
+  c.lineTo(w * .40, py + 8 * s);
+  c.quadraticCurveTo(0, py - 8 * s, -w * .40, py + 8 * s);
+  c.closePath(); c.fill();
+  /* 胸肌刻线（薄肌时消失） */
+  if(girth > .74){
+    c.strokeStyle = "rgba(24,84,54,.32)"; c.lineWidth = 3.4 * s;
+    c.beginPath(); c.moveTo(0, shY + 30 * s); c.lineTo(0, shY + 82 * s);
+    c.moveTo(-w * .33, shY + 64 * s); c.lineTo(w * .33, shY + 64 * s); c.stroke();
+  }
+  /* 手臂：向外张得够远 + 略深一档的绿，才不会被同色躯干吞掉 */
+  c.strokeStyle = limb; c.lineWidth = 25 * s * girth;
+  var ay = shY + 26 * s;
+  if(armUp){ c.beginPath(); c.moveTo(-w * .46, ay); c.lineTo(-w * .76, ay - 92 * s);
+             c.moveTo(w * .46, ay); c.lineTo(w * .72, ay - 88 * s); c.stroke(); }
+  else { c.beginPath(); c.moveTo(-w * .46, ay); c.lineTo(-w * .78, ay + 96 * s);
+         c.moveTo(w * .46, ay); c.lineTo(w * .78, ay + 96 * s); c.stroke(); }
+  /* 脖子 + 头 */
+  c.fillStyle = skin; c.fillRect(-16 * s, shY - 40 * s, 32 * s, 46 * s);
+  var hy = shY - 46 * s;
+  c.beginPath(); c.arc(0, hy, 43 * s, 0, 6.3); c.fill();
+  c.fillStyle = "#2f2a3d"; c.beginPath(); c.arc(0, hy - 22 * s, 40 * s, Math.PI * 1.06, Math.PI * 1.94); c.fill();
+  /* 眉：mood 1=凶 0=淡定 */
+  c.strokeStyle = "#1d1a26"; c.lineWidth = 5 * s; c.lineCap = "round";
+  c.beginPath();
+  c.moveTo(-27 * s, hy - 16 * s + mood * 5 * s); c.lineTo(-8 * s, hy - 10 * s);
+  c.moveTo(27 * s, hy - 16 * s + mood * 5 * s); c.lineTo(8 * s, hy - 10 * s); c.stroke();
+  c.fillStyle = "#12313f"; c.beginPath(); c.arc(-13 * s, hy - 2 * s, 4.6 * s, 0, 6.3); c.arc(13 * s, hy - 2 * s, 4.6 * s, 0, 6.3); c.fill();
+  c.strokeStyle = "#12313f"; c.lineWidth = 3.2 * s;
+  c.beginPath(); c.arc(0, hy + 14 * s, 12 * s, .12 * Math.PI, .88 * Math.PI); c.stroke();
+  c.restore();
+}
+
+function introScene(ms){
+  var c = ICTX; if(!c) return;
+  var W = 960, H = 600, t = Math.max(0, Math.min(1, ms / INTRO_MS));
+  var seg = function(a, b){ return Math.max(0, Math.min(1, (t - a) / (b - a))); };
+  var ease = function(v){ return 1 - Math.pow(1 - v, 3); };
+  var bg = c.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#e9f5ff"); bg.addColorStop(.62, "#fbfdff"); bg.addColorStop(1, "#eef8ef");
+  c.fillStyle = bg; c.fillRect(0, 0, W, H);
+  /* 城市剪影：楼，还是没砸 */
+  var sky = [[74,30,152],[116,22,98],[148,34,214],[190,26,134],[224,38,290],[268,24,108],[300,30,190],[348,22,120],[380,36,246],[430,28,160],[470,24,206],[520,32,132],[560,26,268],[614,22,112],[648,34,180],[700,28,142],[742,24,222],[790,30,126],[828,26,196],[872,22,148]];
+  c.fillStyle = "#e6f1f9";
+  for(var si = 0; si < sky.length; si++) c.fillRect(sky[si][0], 492 - sky[si][2], sky[si][1], sky[si][2]);
+  c.fillStyle = "rgba(255,255,255,.8)";
+  for(var sj = 0; sj < sky.length; sj++)
+    for(var wi = 0; wi < 3; wi++) for(var wj = 0; wj < 3; wj++){
+      if((sj + wi + wj) % 3 === 0) continue;
+      c.fillRect(sky[sj][0] + 6 + wi * 9, 492 - sky[sj][2] + 12 + wj * 17, 5, 8);
+    }
+  c.strokeStyle = "#cfe3ee"; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(44, 492); c.lineTo(916, 492); c.stroke();
+  c.fillStyle = "#dbeaf3"; c.fillRect(44, 495, 872, 44);
+
+  var pa = seg(0, .26), pb = seg(.26, .55), pc = seg(.55, .78), pd = seg(.78, .96);
+  var pop = .34 + .66 * ease(pa);
+  var girth = 1 - .46 * pb;
+  var pant = Math.min(1, pc * 1.45) * .78;
+  var armUp = pb > .05 && pb < .99;
+  var cx = 480;
+
+  /* 变身冲击环 + 尘土（确定性，不用 random，截图可复现） */
+  if(pa < 1){
+    var r = 90 * ease(pa) + 40;
+    c.strokeStyle = "rgba(79,179,122," + (.55 * (1 - pa)) + ")"; c.lineWidth = 9 * (1 - pa) + 2;
+    c.beginPath(); c.arc(cx, 350, r, 0, 6.3); c.stroke();
+    c.strokeStyle = "rgba(123,91,214," + (.40 * (1 - pa)) + ")"; c.lineWidth = 5;
+    c.beginPath(); c.arc(cx, 350, r * 1.28, 0, 6.3); c.stroke();
+    for(var i = 0; i < IDUST.length; i++){
+      var d = IDUST[i], dr = (26 + d[1]) * ease(pa) + 30;
+      c.globalAlpha = .5 * (1 - pa) * d[2]; c.fillStyle = "#b9d8c9";
+      c.beginPath(); c.arc(cx + Math.cos(d[0]) * dr, 474 + Math.sin(d[0]) * dr * .26, 7 * d[2] + 4, 0, 6.3); c.fill();
+    }
+    c.globalAlpha = 1;
+  }
+
+  /* 体脂秤（分镜 3）/ 被砸（分镜 6） */
+  {
+    var sy = 474, sw = 210, bang = pd;
+    c.fillStyle = "#ffffff"; c.strokeStyle = "#cfe0ec"; c.lineWidth = 3;
+    c.beginPath();
+    if(c.roundRect) c.roundRect(cx - sw / 2, sy - 14 + bang * 8, sw, 40 - bang * 6, 12); else c.rect(cx - sw / 2, sy - 14, sw, 40);
+    c.fill(); c.stroke();
+    c.fillStyle = "#eef7ff"; c.fillRect(cx - sw / 2 + 14, sy - 6 + bang * 8, sw - 28, 20);
+    c.fillStyle = "#1f6f5a"; c.font = "900 " + Math.round(19 * (.7 + .3 * ease(pc))) + "px " + IF; c.textAlign = "center";
+    c.fillText((18.6 * ease(pc)).toFixed(1) + "%", cx, sy + 12 + bang * 8);
+    if(bang > 0){
+      /* 冲击环：收小、快速散掉，别顶到台词框 */
+      c.strokeStyle = "rgba(255,122,69," + (.8 * Math.pow(1 - bang, 1.6)) + ")";
+      c.lineWidth = 6 * (1 - bang) + 2;
+      c.beginPath(); c.arc(cx + 20, sy - 24, 24 + 92 * ease(bang), 0, 6.3); c.stroke();
+      /* 拳头砸落（分镜 6：楼，还是没砸） */
+      var fp = ease(Math.min(1, bang * 1.7));
+      var fx = cx + 92 - 30 * fp, fy = 236 + 226 * fp;
+      c.strokeStyle = "#43a06c"; c.lineWidth = 24; c.lineCap = "round";
+      c.beginPath(); c.moveTo(cx + 46, 306); c.lineTo(fx, fy); c.stroke();
+      c.fillStyle = "#4fb37a"; c.beginPath(); c.arc(fx, fy, 27, 0, 6.3); c.fill();
+      /* 命中火花 */
+      if(bang > .38){
+        var hp = ease((bang - .38) / .3);
+        c.strokeStyle = "rgba(255,122,69," + (.9 * (1 - hp)) + ")"; c.lineWidth = 5;
+        for(var hi = 0; hi < 6; hi++){
+          var ha = -1.15 + hi * .46, hr0 = 26 + 18 * hp, hr1 = hr0 + 26 * (1 - hp) + 10;
+          c.beginPath();
+          c.moveTo(cx + 20 + Math.cos(ha) * hr0, sy - 24 + Math.sin(ha) * hr0 * .7);
+          c.lineTo(cx + 20 + Math.cos(ha) * hr1, sy - 24 + Math.sin(ha) * hr1 * .7);
+          c.stroke();
+        }
+      }
+      /* 秤面裂纹 */
+      c.strokeStyle = "#8fa8b6"; c.lineWidth = 3;
+      c.beginPath();
+      c.moveTo(cx - 60, sy - 40); c.lineTo(cx - 40, sy - 20);
+      c.moveTo(cx + 52, sy - 36); c.lineTo(cx + 34, sy - 16);
+      c.moveTo(cx + 6, sy - 44); c.lineTo(cx - 4, sy - 22); c.stroke();
+    }
+  }
+
+  /* 1.5L 大水桶（分镜 2） */
+  if(pb > 0){
+    /* lift：喝的时候举到嘴边，上秤时放回手边 —— 不留悬空水桶 */
+    var lift = ease(Math.min(1, pb * 1.8)) * (1 - ease(Math.min(1, pc * 1.5)));
+    var by = 390 - 135 * lift;
+    c.save(); c.translate(cx + 56 + 18 * lift, by); c.rotate(-.18 * lift);
+    c.fillStyle = "#bfe3ff"; c.strokeStyle = "#7fb8dd"; c.lineWidth = 3;
+    c.beginPath();
+    if(c.roundRect) c.roundRect(-26, -66, 52, 116, 12); else c.rect(-26, -66, 52, 116);
+    c.fill(); c.stroke();
+    c.fillStyle = "#4aa3dd"; c.fillRect(-26, -22, 52, 66);
+    c.fillStyle = "#ffffff"; c.font = "900 19px " + IF; c.textAlign = "center";
+    c.fillText("1.5L", 0, -36); c.fillText("大水", 0, 8);
+    c.restore();
+  }
+
+  hulkFig(c, cx, 470, pop * 0.72, girth, pant, armUp, armUp ? .4 : .9);
+
+  /* 台词气泡（分镜台词，一屏一条） */
+  var line = "", sub = "";
+  if(t < .26){ line = "变身完成 —— 尺寸只大一号，裤子反而松了"; }
+  else if(t < .55){ line = "「别急，先喝口水。」"; sub = "1.5L 大水桶 · 喝完还记一笔"; }
+  else if(t < .78){ line = "「先别动，我上个秤。」"; }
+  else { line = "「楼，还是没砸。」"; }
+  if(t < .96){
+    c.font = "900 34px " + IF; c.textAlign = "center";
+    var tw = c.measureText(line).width, bw = Math.min(830, tw + 64), bh = sub ? 100 : 72;
+    c.fillStyle = "rgba(255,255,255,.93)"; c.strokeStyle = "#d8e8f2"; c.lineWidth = 2;
+    c.beginPath();
+    if(c.roundRect) c.roundRect(cx - bw / 2, 88, bw, bh, 20); else c.rect(cx - bw / 2, 88, bw, bh);
+    c.fill(); c.stroke();
+    c.fillStyle = "#12313f"; c.fillText(line, cx, 88 + (sub ? 44 : 46));
+    if(sub){ c.fillStyle = "#3d5f70"; c.font = "700 22px " + IF; c.fillText(sub, cx, 88 + 80); }
+  }
+
+  /* 左上角出处 + 右上角跳过 */
+  c.textAlign = "left"; c.fillStyle = "#7d9aab"; c.font = "700 22px " + IF;
+  c.fillText("《怪物养生图鉴》① 绿巨人 · HULK 2.0", 54, 54);
+  c.textAlign = "right"; c.fillStyle = "#9ab4c2"; c.font = "600 20px " + IF;
+  c.fillText("点击跳过 ▸", 906, 54);
+
+  /* 收尾定格：标题卡 */
+  var ft = seg(.96, 1);
+  if(ft > 0){
+    c.globalAlpha = ft; c.fillStyle = "rgba(238,248,255," + (.92 * ft) + ")"; c.fillRect(0, 0, W, H);
+    c.textAlign = "center";
+    c.fillStyle = "#ff7a45"; c.font = "900 68px " + IF; c.fillText("大水时代 · 练薄肌", 480, 286);
+    c.fillStyle = "#12313f"; c.font = "800 30px " + IF; c.fillText("绿巨人都开始喝大水了，你还接奶茶？", 480, 344);
+    c.fillStyle = "#3d5f70"; c.font = "700 24px " + IF; c.fillText("1 分钟一局 · 水位绿区里薄肌才涨", 480, 396);
+    c.globalAlpha = 1;
+  }
+}
+
+function introStop(){
+  introOn = false;
+  if(introRAF){ cancelAnimationFrame(introRAF); introRAF = 0; }
+  if(ICV) ICV.classList.add("hide");
+}
+function introLoop(){
+  if(!introOn) return;
+  var ms = performance.now() - introT0;
+  if(ms >= INTRO_MS){ introStop(); return; }
+  introScene(ms);
+  introRAF = requestAnimationFrame(introLoop);
+}
+function introPlay(withSound){
+  var el = document.getElementById("icv"); if(!el) return false;
+  ICV = el; ICTX = ICV.getContext("2d");
+  ICV.classList.remove("hide");
+  introOn = true; introT0 = performance.now();
+  introScene(0);
+  if(introRAF) cancelAnimationFrame(introRAF);
+  introRAF = requestAnimationFrame(introLoop);
+  if(withSound){                                  /* 只在已有用户手势解锁后才有声 */
+    try{
+      if(AC && AC.state === "running" && !muted){
+        var n0 = AC.currentTime;
+        sweep(140, 38, n0, .38, "sawtooth", .30); tone(58, n0, .34, "square", .26);
+        sweep(70, 300, n0 + 1.05, .30, "sine", .20);
+        tone(1245, n0 + 1.72, .10, "square", .16);
+        sweep(220, 28, n0 + 2.42, .42, "square", .30);
+      }
+    }catch(e){}
+  }
+  return true;
+}
+/* 引针：驱动脚本可把开场定格在任意毫秒（截图用） */
+window.__intro = { play: introPlay, stop: introStop, len: INTRO_MS,
+  at: function(ms){ var el = document.getElementById("icv"); if(!el) return "no canvas";
+    ICV = el; ICTX = ICV.getContext("2d"); ICV.classList.remove("hide");
+    introOn = false; introScene(ms); return ms; },
+  get on(){ return introOn; } };
+(function(){
+  var el = document.getElementById("icv"); if(!el) return;
+  var skip = function(){ if(introOn) introStop(); };
+  el.addEventListener("click", skip);
+  window.addEventListener("keydown", function(e){ if(introOn){ skip(); } }, true);
+  el.addEventListener("touchstart", skip, { passive: true });
+})();
+
 /* ============================ boot ============================ */
 try{
   var b0 = parseInt(localStorage.getItem("ds_lean_best") || "0", 10) || 0;
@@ -825,10 +1071,17 @@ document.getElementById("copyBtn").addEventListener("click", function(e){
 S = newState(); running = false; last = performance.now(); setHud(false);
 requestAnimationFrame(frame);
 
+/* 开场：加载即播一次（静音，浏览器未解锁音频）；?nointro=1 或 BOT 模式跳过 */
+document.getElementById("introBtn").addEventListener("click", function(){
+  audioInit(); try{ if(AC && AC.state === "suspended") AC.resume(); }catch(e){}
+  introPlay(true);
+});
+if(!BOT && !/[?&]nointro/.test(location.search)){ setTimeout(function(){ introPlay(false); }, 60); }
+
 if(BOT){
   setTimeout(function(){ audioInit(); reset(); }, 200);
 }
-window.__game = { get S(){ return S; }, C: C, end: endGame, start: reset, bot: BOT, saveCard: saveCard, hudCut: function(){ return HUDCUT; }, hudCut: function(){ return HUDCUT; } };
+window.__game = { get S(){ return S; }, C: C, end: endGame, start: reset, bot: BOT, saveCard: saveCard, hudCut: function(){ return HUDCUT; } };
 })();
 </script>
 </body>
