@@ -11,19 +11,27 @@
     --line:#d8e8f2; --cream:#f2f8fc;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:var(--cream);color:var(--ink);
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;overscroll-behavior:none;
+    background:var(--cream);color:var(--ink);
     font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,"Segoe UI",sans-serif;}
-  #wrap{position:relative;width:100%;max-width:960px;margin:0 auto;padding:10px 10px 18px}
-  #stage{position:relative;width:100%;aspect-ratio:960/600;border-radius:18px;overflow:hidden;
-    background:linear-gradient(#eaf5ff 0%,#f8fcff 62%,#eef7ee 100%);box-shadow:0 10px 30px rgba(18,49,63,.10)}
-  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  /* ---------- 舞台：铺满整个视口；世界 960x600 等比缩放居中（顶部对齐） ---------- */
+  #stage{position:fixed;inset:0;overflow:hidden;background:linear-gradient(#dceaf6 0%,#e8f3f9 62%,#e3efe9 100%)}
+  #world{position:absolute;left:0;top:0;width:960px;height:600px;overflow:hidden;border-radius:12px;
+    background:linear-gradient(#eaf5ff 0%,#f8fcff 62%,#eef7ee 100%);box-shadow:0 18px 46px rgba(18,49,63,.22)}
+  #world canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  /* 覆盖层跟随视口，不随世界缩放：HUD/面板在任何屏幕下都保持可读字号 */
+  #ui{position:absolute;inset:0;z-index:20;pointer-events:none}
 
   /* ---------- HUD ---------- */
-  #hud{position:absolute;left:0;right:0;top:0;padding:9px 10px 8px;display:flex;gap:10px;align-items:flex-start;
+  #hud{position:absolute;left:0;right:0;top:0;max-width:var(--hudw,1000px);margin:0 auto;
+    padding:calc(9px + env(safe-area-inset-top)) 10px 8px;display:flex;gap:10px;align-items:flex-start;
     pointer-events:none;font-size:13px}
-  .meter{flex:1 1 0;background:rgba(255,255,255,.82);border:1px solid var(--line);border-radius:12px;padding:6px 9px 7px;
+  .meter{flex:1 1 0;min-width:0;background:rgba(255,255,255,.82);border:1px solid var(--line);border-radius:12px;padding:6px 9px 7px;
     backdrop-filter:blur(3px)}
-  .meter .lbl{display:flex;justify-content:space-between;font-weight:700;letter-spacing:.4px;font-size:12px;color:var(--ink2)}
+  /* nowrap：HUD 高度不能在「连绿」文字出现时突然长高——它会带动物件裁切线跳动 */
+  .meter .lbl{display:flex;justify-content:space-between;gap:5px;font-weight:700;letter-spacing:.4px;font-size:12px;
+    color:var(--ink2);white-space:nowrap}
+  .lbl > span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
   .meter .lbl b{color:var(--ink);font-size:14px}
   .bar{position:relative;height:11px;border-radius:7px;background:#e6eef5;margin-top:5px;overflow:hidden}
   .bar > i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;transition:width .12s linear}
@@ -35,13 +43,27 @@
   .zone.risk{background:rgba(229,72,77,.18)}
   .warnChip{font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;color:#fff;background:var(--danger);
     opacity:0;transition:opacity .15s;white-space:nowrap}
-  #right{display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.82);border:1px solid var(--line);
-    border-radius:12px;padding:7px 11px;font-weight:800;font-size:15px;pointer-events:auto}
+  #right{display:flex;flex:0 0 auto;gap:8px;align-items:center;background:rgba(255,255,255,.82);border:1px solid var(--line);
+    border-radius:12px;padding:7px 11px;font-weight:800;font-size:15px;white-space:nowrap;
+    pointer-events:auto;position:relative;z-index:35}   /* 35>面板30：开始/结算页也能点静音与全屏 */
   #combo{color:var(--lean);font-size:12px;font-weight:800}
-  #mute{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;padding:3px 8px;font-size:14px}
+  /* 面板期间只淡出「游戏数据」；右侧静音/全屏要留在最上层可点 */
+  .meter,#clock,.tsec,#combo{transition:opacity .18s}
+  body.nohud .meter,body.nohud #clock,body.nohud .tsec,body.nohud #combo{opacity:0}
+  /* 窄屏紧凑模式：由 layout() 按世界宽度打 body.hudc */
+  body.hudc #hud{font-size:12px;gap:7px;padding:calc(7px + env(safe-area-inset-top)) 8px 6px}
+  body.hudc .meter{padding:4px 7px 5px;border-radius:10px}
+  body.hudc .meter .lbl{font-size:11px}
+  body.hudc .meter .lbl b{font-size:12.5px}
+  body.hudc .bar{height:9px;margin-top:4px}
+  body.hudc .sub{display:none}
+  body.hudc #right{padding:5px 8px;font-size:13px;gap:6px}
+  body.hudc #combo{display:none}
+  #mute,#fs{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;padding:3px 8px;font-size:14px}
 
   /* ---------- toasts ---------- */
-  #toasts{position:absolute;left:0;right:0;top:104px;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none}
+  #toasts{position:absolute;left:0;right:0;top:104px;max-width:var(--hudw,1000px);margin:0 auto;
+    display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none}
   .toast{background:#12313f;color:#fff;font-size:13px;font-weight:700;border-radius:20px;padding:5px 13px;
     animation:tin .25s ease-out, tout .5s ease-in 1.3s forwards;white-space:nowrap}
   .toast.warn{background:#e5484d}
@@ -50,9 +72,11 @@
   @keyframes tout{to{transform:translateY(-10px);opacity:0}}
 
   /* ---------- panels ---------- */
-  .panel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:12px;padding:22px;background:rgba(242,248,252,.94);backdrop-filter:blur(4px);text-align:center}
-  #icv{position:absolute;inset:0;width:100%;height:100%;z-index:40;background:#eef6ff}
+  .panel{position:absolute;inset:0;z-index:30;overflow-y:auto;overscroll-behavior:contain;pointer-events:auto;
+    padding:22px 22px calc(var(--padh,84px) + 26px);background:rgba(242,248,252,.95);backdrop-filter:blur(5px);text-align:center}
+  /* 居中但不裁顶部：内容高于容器时从顶部开始滚，而不是被 flex 居中切掉 */
+  .panel > .in{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+  #icv{position:absolute;inset:auto;z-index:45;background:#eef6ff;pointer-events:auto;border-radius:12px}
   #icv.hide{display:none}
   .panel.hidden{display:none}
   .panel h1{margin:0;font-size:30px;letter-spacing:1px}
@@ -78,81 +102,98 @@
     font-size:12.5px;color:var(--ink2);resize:none;background:#fff;text-align:left}
   .row{display:flex;gap:9px;flex-wrap:wrap;justify-content:center}
 
-  /* ---------- mobile pad ---------- */
-  #pad{display:none;gap:9px;justify-content:space-between;margin-top:9px}
-  #pad div{flex:1 1 0;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 0;text-align:center;
-    font-weight:800;font-size:17px;color:var(--ink2);user-select:none}
-  @media (hover:none) and (pointer:coarse){ #pad{display:flex} }
-  .foot{margin-top:9px;font-size:11.5px;color:var(--ink2);line-height:1.6}
+  /* ---------- 底部悬浮操作条：固定贴底，不随世界缩放 ---------- */
+  #pad{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;gap:9px;justify-content:center;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));pointer-events:none;transition:opacity .18s}
+  #pad > div{pointer-events:auto;flex:1 1 0;max-width:190px;background:rgba(255,255,255,.90);border:1px solid var(--line);
+    border-radius:16px;padding:15px 0;text-align:center;font-weight:800;font-size:17px;color:var(--ink2);
+    user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none;
+    backdrop-filter:blur(6px);box-shadow:0 8px 22px rgba(18,49,63,.16);transition:transform .08s,background .08s}
+  #pad > div:active{transform:translateY(1px) scale(.985);background:#fff}
+  #pad > div[data-act="rep"]{max-width:260px;background:linear-gradient(180deg,#39b0ea,#1f8fd0);color:#fff;border-color:transparent}
+  body.panelup #pad{opacity:.24}
+  body.panelup #pad > div{pointer-events:none}
+  #rot{position:absolute;left:0;right:0;bottom:calc(var(--padh,84px) + 16px);text-align:center;font-size:13px;
+    color:var(--ink2);opacity:0;transition:opacity .25s;pointer-events:none;z-index:15}
+  body.portrait #rot{opacity:.92}
+  .foot{max-width:640px;font-size:11.5px;color:var(--ink2);line-height:1.6;margin:2px 0 0}
 </style>
 </head>
 <body>
-<div id="wrap">
-  <div id="stage">
+<div id="stage">
+  <div id="world">
     <canvas id="cv"></canvas>
+  </div>
 
+  <div id="ui">
     <div id="hud">
       <div class="meter">
-        <div class="lbl"><span>水位 · 1.5L 大水</span><span id="hydraFlash" class="warnChip"></span><b id="hydraVal">62</b></div>
+        <div class="lbl"><span>水位<span class="sub"> · 1.5L 大水</span></span><span id="hydraFlash" class="warnChip"></span><b id="hydraVal">62</b></div>
         <div class="bar"><i id="hydraFill" style="width:62%"></i>
           <span class="zone dry" style="left:0;width:44%"></span>
           <span class="zone ok" style="left:52%;width:30%"></span>
           <span class="zone risk" style="left:86%;width:14%"></span></div>
       </div>
       <div class="meter">
-        <div class="lbl"><span>薄肌值 · 瘦≠弱</span><b id="leanVal">30</b></div>
+        <div class="lbl"><span>薄肌值<span class="sub"> · 瘦≠弱</span></span><b id="leanVal">30</b></div>
         <div class="bar"><i id="leanFill" style="width:30%"></i></div>
       </div>
-      <div id="right"><span id="clock">60</span>s<span id="combo"></span><span id="mute" title="静音 / M">🔊</span></div>
+      <div id="right"><span id="clock">60</span><span class="tsec">s</span><span id="combo"></span><span id="mute" title="静音 / M">🔊</span><span id="fs" title="全屏 / F">⛶</span></div>
     </div>
 
     <div id="toasts"></div>
     <canvas id="icv" width="960" height="600" class="hide"></canvas>
 
     <div class="panel" id="start">
-      <h1>大水时代 · 练薄肌<small>1 分钟 · 喝大水不可豪饮</small></h1>
-      <div class="rules">
-        <span class="k">← → 或 <b>A D</b> 移动 · 鼠标／手指也能拖</span>
-        <span class="k"><b>空格</b> 开合跳（薄肌 <span id="rRep">+0.25</span>）</span>
-        <span><b>1.5L 大水</b> 水位 <span id="rWater">+12</span>（咕咚 · 一秒内涨完）</span>
-        <span><b>小口杯</b> 水位 <span id="rSip">-12</span>（回落）</span>
-        <span><b>奶茶</b> 薄肌 <span id="rTea">-8</span> ·「18 元溢价」</span>
-        <span><b>大杠铃</b> 薄肌 <span id="rBar">-12</span> · 变厚肌 3 秒</span>
-        <span><b>跳绳</b> 薄肌 <span id="rRope">+6</span></span>
-        <span>水位<b>绿区 <span id="rBand">52–82</span></b> 时薄肌才涨</span>
-        <span class="k">超 <span id="rOver">86</span> = 水中毒「肿」</span>
+      <div class="in">
+        <h1>大水时代 · 练薄肌<small>1 分钟 · 喝大水不可豪饮</small></h1>
+        <div class="rules">
+          <span class="k">← → 或 <b>A D</b> 移动 · 鼠标／手指也能拖</span>
+          <span class="k"><b>空格</b> 开合跳（薄肌 <span id="rRep">+0.25</span>）</span>
+          <span><b>1.5L 大水</b> 水位 <span id="rWater">+12</span>（咕咚 · 一秒内涨完）</span>
+          <span><b>小口杯</b> 水位 <span id="rSip">-12</span>（回落）</span>
+          <span><b>奶茶</b> 薄肌 <span id="rTea">-8</span> ·「18 元溢价」</span>
+          <span><b>大杠铃</b> 薄肌 <span id="rBar">-12</span> · 变厚肌 3 秒</span>
+          <span><b>跳绳</b> 薄肌 <span id="rRope">+6</span></span>
+          <span>水位<b>绿区 <span id="rBand">52–82</span></b> 时薄肌才涨</span>
+          <span class="k">超 <span id="rOver">86</span> = 水中毒「肿」</span>
+        </div>
+        <button id="startBtn">开始（第 1 件：把奶茶放下）</button>
+        <button id="introBtn" class="ghost">▶ 看开场 3 秒（绿巨人薄肌版）</button>
+        <div class="hint">最高分：<b id="best0">—</b></div>
+        <div class="hint">1.5L 大水 ≈ 3 元 ｜ 一杯奶茶 ≈ 15–20 元 ｜ 一天 1.5L 足够，别豪饮</div>
+        <div class="foot">机制：水位必须维持绿区（喝太少脱水、喝太多「水中毒」），绿区里薄肌才涨；接住大杠铃会变厚肌 3 秒。60 秒后结算称号。</div>
       </div>
-      <button id="startBtn">开始（第 1 件：把奶茶放下）</button>
-      <button id="introBtn" class="ghost">▶ 看开场 3 秒（绿巨人薄肌版）</button>
-      <div class="hint">最高分：<b id="best0">—</b></div>
-      <div class="hint">1.5L 大水 ≈ 3 元 ｜ 一杯奶茶 ≈ 15–20 元 ｜ 一天 1.5L 足够，别豪饮</div>
     </div>
 
     <div class="panel hidden" id="end">
-      <div id="endTitle">—</div>
-      <div id="endStats">
-        <div><b id="sLean">0</b><i>薄肌值</i></div>
-        <div><b id="sGreen">0%</b><i>绿区占比</i></div>
-        <div><b id="sWater">0</b><i>瓶大水</i></div>
-        <div><b id="sStreak">0s</b><i>最长连绿</i></div>
-        <div><b id="sTea">0</b><i>接到的奶茶</i></div>
+      <div class="in">
+        <div id="endTitle">—</div>
+        <div id="endStats">
+          <div><b id="sLean">0</b><i>薄肌值</i></div>
+          <div><b id="sGreen">0%</b><i>绿区占比</i></div>
+          <div><b id="sWater">0</b><i>瓶大水</i></div>
+          <div><b id="sStreak">0s</b><i>最长连绿</i></div>
+          <div><b id="sTea">0</b><i>接到的奶茶</i></div>
+        </div>
+        <div id="cf">—</div>
+        <textarea id="share" readonly></textarea>
+        <div class="row">
+          <button id="againBtn">再来一局</button>
+          <button class="ghost" id="saveBtn">保存成绩卡（图片）</button>
+          <button class="ghost" id="copyBtn">复制成绩文案</button>
+        </div>
+        <div class="hint" id="bestLine">最高分：<b id="best1">—</b></div>
+        <div class="hint">点「保存成绩卡」发到群里 / 朋友圈 —— 看谁先当上「圣人不中毒」</div>
       </div>
-      <div id="cf">—</div>
-      <textarea id="share" readonly></textarea>
-      <div class="row">
-        <button id="againBtn">再来一局</button>
-        <button class="ghost" id="saveBtn">保存成绩卡（图片）</button>
-        <button class="ghost" id="copyBtn">复制成绩文案</button>
-      </div>
-      <div class="hint" id="bestLine">最高分：<b id="best1">—</b></div>
-      <div class="hint">点「保存成绩卡」发到群里 / 朋友圈 —— 看谁先当上「圣人不中毒」</div>
     </div>
   </div>
 
-  <div id="pad">
-    <div data-act="left">◀</div><div data-act="rep">开合跳</div><div data-act="right">▶</div>
-  </div>
-  <div class="foot">机制：水位必须维持绿区（喝太少脱水、喝太多「水中毒」），绿区里薄肌才涨；接住大杠铃会变厚肌 3 秒。60 秒后结算称号。</div>
+  <div id="rot">↻ 横屏更宽敞（竖屏也能玩）</div>
+</div>
+
+<div id="pad">
+  <div data-act="left">◀</div><div data-act="rep">开合跳</div><div data-act="right">▶</div>
 </div>
 
 <script>
@@ -167,19 +208,54 @@ var SPEED = Math.max(0.5, Math.min(16, parseFloat(Q.get("speed") || "1") || 1));
 
 var W = 960, H = 600, GROUND = H - 58;
 var cv = document.getElementById("cv"), ctx = cv.getContext("2d");
-function fit(){
+function fit(){                                   /* 画布后备分辨率 = 逻辑尺寸，与屏幕大小无关 */
   var dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
-/* HUD 下沿（画布逻辑单位）：物件绘制裁到这里，避免从 HUD 面板缝隙露头 */
+/* HUD 下沿（画布逻辑单位）：物件绘制裁到这里，避免从 HUD 面板缝隙露头。
+   世界顶部对齐视口顶部，所以 (hud.bottom - 世界top) * (H/世界高) 正好是逻辑单位下的裁切线。 */
 var HUDCUT = 66;
 function measureHud(){
   var r = cv.getBoundingClientRect(), h = document.getElementById("hud").getBoundingClientRect();
-  if(r.height > 0 && h.height > 0) HUDCUT = Math.max(0, (h.bottom - r.top) * (H / r.height));
+  if(r.height > 0 && h.height > 0) HUDCUT = Math.min(H, Math.max(0, (h.bottom - r.top) * (H / r.height)));
 }
-fit(); measureHud();
-window.addEventListener("resize", function(){ fit(); measureHud(); });
+/* 全屏舞台布局：世界等比缩放（顶部对齐、水平居中），可用高度里扣掉底部悬浮操作条 */
+var stageEl = document.getElementById("stage"), worldEl = document.getElementById("world"),
+    padEl = document.getElementById("pad"), SCALE = 1;
+function layout(){
+  var vw = stageEl.clientWidth || window.innerWidth, vh = stageEl.clientHeight || window.innerHeight;
+  var pr = padEl.getBoundingClientRect();
+  var padH = Math.round((pr.height || 72) + Math.max(0, vh - pr.bottom));   /* 含底部安全区 */
+  var availH = Math.max(150, vh - padH - 10);
+  var s = Math.max(0.16, Math.min(3, Math.min(vw / W, availH / H)));
+  SCALE = s;
+  var bw = Math.round(W*s), bh = Math.round(H*s), bl = Math.round((vw - bw)/2);
+  worldEl.style.width = bw + "px"; worldEl.style.height = bh + "px";
+  worldEl.style.left = bl + "px"; worldEl.style.top = "0px";
+  var ic = document.getElementById("icv");                 /* 开场覆盖层跟随世界，保持等比不拉伸 */
+  if(ic){ ic.style.left = bl + "px"; ic.style.top = "0px"; ic.style.width = bw + "px"; ic.style.height = bh + "px"; }
+  var rs = document.documentElement.style;
+  rs.setProperty("--padh", padH + "px");
+  rs.setProperty("--hudw", Math.round(Math.min(1000, bw)) + "px");
+  document.body.classList.toggle("hudc", bw < 720);
+  document.body.classList.toggle("portrait", vh > vw*1.05 && (availH/H) > (vw/W)*1.35);
+  /* 世界竖直位置：空区装得下就居中（HUD 落在世界外的留白里，一点也不挡画面）；
+     装不下就顶到 0，让 HUD 盖在天空上——这时 measureHud 算出的裁切线正好挡住物件从缝隙露头。 */
+  var hudBottom = Math.round(document.getElementById("hud").getBoundingClientRect().bottom);
+  var freeTop = hudBottom + 8, freeH = Math.max(120, (vh - padH - 8) - freeTop);
+  var top = (bh <= freeH - 2) ? Math.round(freeTop + (freeH - bh)/2) : 0;
+  worldEl.style.top = top + "px";
+  fit(); measureHud();
+}
+window.addEventListener("resize", layout);
+window.addEventListener("orientationchange", function(){ setTimeout(layout, 220); });
+if(window.visualViewport) window.visualViewport.addEventListener("resize", layout);
+["fullscreenchange","webkitfullscreenchange"].forEach(function(ev){
+  document.addEventListener(ev, function(){ setTimeout(layout, 60); syncFs(); });
+});
+layout();
+window.addEventListener("load", layout);
 
 /* ============================ config ============================ */
 var C = {
@@ -495,7 +571,7 @@ function endGame(){
   document.getElementById("best1").textContent = best;
   document.getElementById("end").classList.remove("hidden");
 }
-function setHud(on){ var h = document.getElementById("hud"); if(h) h.style.opacity = on ? "1" : "0"; }
+function setHud(on){ var h = document.getElementById("hud"); if(h) h.style.opacity = ""; document.body.classList.toggle("nohud", !on); }
 function reset(){
   setHud(true);
   S = newState(); running = true; last = performance.now();
@@ -512,6 +588,7 @@ document.addEventListener("keydown", function(e){
   keys[e.key.toLowerCase()] = true;
   if(e.code === "Space"){ e.preventDefault(); doRep(); }
   if(e.key.toLowerCase() === "m") toggleMute();
+  if(e.key.toLowerCase() === "f") toggleFs();
 });
 document.addEventListener("keyup", function(e){ keys[e.key.toLowerCase()] = false; });
 cv.addEventListener("pointerdown", function(e){
@@ -525,6 +602,7 @@ cv.addEventListener("pointermove", function(e){
 cv.addEventListener("pointerup", function(){ pointerX = null; });
 cv.addEventListener("pointercancel", function(){ pointerX = null; });
 document.getElementById("pad").addEventListener("pointerdown", function(e){
+  if(e.cancelable) e.preventDefault();          /* 手机：别让点按钮变成双击缩放/滚动 */
   var a = e.target.getAttribute && e.target.getAttribute("data-act");
   if(a === "rep") doRep();
   else if(a === "left") keys["arrowleft"] = true;
@@ -545,6 +623,35 @@ function toggleMute(){
   muteBtn.textContent = muted ? "🔇" : "🔊";
 }
 muteBtn.addEventListener("click", toggleMute);
+
+/* 全屏开关：铺满视口是默认形态，这个按钮再要真正的 Fullscreen */
+var fsBtn = document.getElementById("fs");
+function syncFs(){ if(fsBtn) fsBtn.textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? "⤡" : "⛶"; }
+function toggleFs(){
+  var d = document;
+  try{
+    if(!(d.fullscreenElement || d.webkitFullscreenElement)){
+      var el = d.documentElement, rq = el.requestFullscreen || el.webkitRequestFullscreen;
+      if(rq) rq.call(el);
+    }else{
+      var ex = d.exitFullscreen || d.webkitExitFullscreen;
+      if(ex) ex.call(d);
+    }
+  }catch(e){}
+  setTimeout(layout, 80);
+}
+if(fsBtn) fsBtn.addEventListener("click", toggleFs);
+syncFs();
+
+/* 面板/开场浮在上面时，底部操作条压暗并失效（几何不变，布局不跳） */
+function syncPad(){
+  var up = !document.getElementById("start").classList.contains("hidden")
+        || !document.getElementById("end").classList.contains("hidden")
+        || !document.getElementById("icv").classList.contains("hide");
+  document.body.classList.toggle("panelup", up);
+}
+new MutationObserver(syncPad).observe(document.body, {subtree:true, attributes:true, attributeFilter:["class"]});
+syncPad();
 
 /* ============================ update ============================ */
 function update(dt){
@@ -1081,7 +1188,11 @@ if(!BOT && !/[?&]nointro/.test(location.search)){ setTimeout(function(){ introPl
 if(BOT){
   setTimeout(function(){ audioInit(); reset(); }, 200);
 }
-window.__game = { get S(){ return S; }, C: C, end: endGame, start: reset, bot: BOT, saveCard: saveCard, hudCut: function(){ return HUDCUT; } };
+window.__game = { get S(){ return S; }, C: C, end: endGame, start: reset, bot: BOT, saveCard: saveCard,
+  hudCut: function(){ return HUDCUT; }, layout: layout,
+  scale: function(){ return SCALE; },
+  box: function(){ var r = worldEl.getBoundingClientRect(); return {l:Math.round(r.left),t:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height)}; },
+  pad: function(){ var r = padEl.getBoundingClientRect(); return {t:Math.round(r.top),h:Math.round(r.height)}; } };
 })();
 </script>
 </body>
